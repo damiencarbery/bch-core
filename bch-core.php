@@ -2,7 +2,7 @@
 /*
 Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
-Description: Theme indenpendent code for BlanchCentreHistory.com.
+Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
 Version: 0.1
 */
@@ -42,6 +42,13 @@ function child_theme_setup() {
 }
 
 
+// Load CSS from plugin.
+add_action( 'wp_enqueue_scripts', 'bch_enqueue_local_styles' );
+function bch_enqueue_local_styles() {
+    wp_enqueue_style( 'bch', plugin_dir_url( __FILE__ ) . 'bch-core.css', array( 'genesis-sample' ) );
+}
+
+
 add_filter('wp_title', 'bch_taxonomy_title', 20, 3);
 function bch_taxonomy_title($title, $sep, $seplocation) {
     if (is_tax()) {
@@ -62,6 +69,49 @@ function my_posts_where( $where ) {
 	$where = str_replace("meta_key = 'dates_for_unit_\$_unit_number", "meta_key LIKE 'dates_for_unit_%_unit_number", $where);
 
 	return $where;
+}
+
+
+// Sort tag archive by unit open date.
+// See: http://www.billerickson.net/customize-the-wordpress-query/
+add_action('pre_get_posts', 'bch_tag_order_by_opendate');
+function bch_tag_order_by_opendate($query) {
+	if ( ! is_tag() ) { return; }
+
+	if ( is_user_logged_in() ) {
+		if ($query->is_main_query()) {
+			echo '<p>BCH_TAG: main query</p>';
+		} else {
+			//echo '<p>BCH_TAG: NOT main query</p>';
+		}
+	}
+
+    //if (is_admin()) { echo '<p>BCH_TAG: is_admin</p>';} else { echo '<p>BCH_TAG: NOT is_admin</p>';}
+
+    if( $query->is_main_query() && !$query->is_feed() && !is_admin() ) {
+    //if( !$query->is_feed() && !is_admin() ) {
+        $query->set( 'meta_query', array(
+            array(
+                'key'     => 'opendate',
+                'compare' => '<=',
+                'type' => 'DATE',
+            ),
+          )
+        );
+        //$query->set('meta_key', 'opendate');
+		$query->set('meta_key', 'closedate');
+        $query->set('orderby', 'meta_value');
+        $query->set('order', 'DESC');
+        
+        $query->set( 'posts_per_page', '2' );
+        /*
+        $query->set('orderby', 'meta_value' );*/
+		
+		if ( is_user_logged_in() ) {
+			echo "<p>BCH_TAG query_vars:</p>";
+			echo '<!-- ', var_export($query->query_vars, true), '-->';
+		}
+    }
 }
 
 
@@ -163,10 +213,10 @@ function bch_add_store_custom_field_info() {
 
 				$the_query = new WP_Query( $args );
 
+				$stores_by_date = array();
 				if( $the_query->have_posts() ) {
 					ob_start(); // Buffer output and drop later so that echo calls can be left in code until source control sorted.
 					echo '<ul>';
-					$stores_by_date = array();
 					while ( $the_query->have_posts() ) {
 						$the_query->the_post();
 						
@@ -206,12 +256,17 @@ function bch_add_store_custom_field_info() {
 
 				wp_reset_query();
 
-				ksort( $stores_by_date );
-				echo '<ul>';
-				foreach ( array_reverse( $stores_by_date ) as $date ) {
-					echo '<li>', $date, '</li>';
+				if ( ! empty( $stores_by_date ) ) {
+					ksort( $stores_by_date );
+					echo '<ul>';
+					foreach ( array_reverse( $stores_by_date ) as $date ) {
+						echo '<li>', $date, '</li>';
+					}
+					echo '</ul>';
 				}
-				echo '</ul>';
+				else {
+					echo '<p>Sorry, there is no history for unit ', $tag->slug, '.</p>';
+				}
 			}
 		}
 	}
@@ -292,6 +347,7 @@ function bch_change_category_title( $null, $term_id, $key, $single ) {
 }
 
 
+// Add links to unit on left and unit on right. This allows easy browsing of the site.
 function bch_left_right_units() {
 	if ( is_tax( 'unit_num' ) ) {
 		$unit_num = get_queried_object();
@@ -307,9 +363,6 @@ function bch_left_right_units() {
 			$right_link = sprintf( '<a href="%s">Unit on right: %d &rarr;</a>', get_term_link( $unit_right ), $unit_right->name );
 		}
 ?>
-<style>
-.single-unit-num { display: flex; justify-content: space-between; }
-</style>
 <div class="archive-description single-unit-num">
 <div><?php echo $left_link; ?></div>
 <div><?php echo $right_link; ?></div>
@@ -319,6 +372,16 @@ function bch_left_right_units() {
 }
 
 
+
+// Change the search form text fronm 'Search this website' to 'Search for stores'.
+add_filter( 'genesis_search_text', 'bch_change_search_form_text' );
+function bch_change_search_form_text( $placeholder ) {
+	return 'Search for stores';
+}
+
+
+// Do not remove the default WordPress custom fields metabox as it is used
+// for some custom fields not covered by the Units repeater fields e.g. url.
 add_filter( 'acf/settings/remove_wp_meta_box', '__return_false' );
 
 
