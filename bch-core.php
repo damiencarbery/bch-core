@@ -191,6 +191,9 @@ function bch_add_store_custom_field_info() {
 		  echo implode( '', array_reverse( $store_history ) );
           echo '</ul>';
       }
+	  else {
+		  echo '<p>Sorry, there is no history for this store - the old data has not yet been converted to the new format.</p>';
+	  }
 
 	if ( $posttags ) {
 		foreach($posttags as $tag) {
@@ -198,7 +201,7 @@ function bch_add_store_custom_field_info() {
 				
 				printf( '<h2>History of unit <a href="/tag/%s/">%s</a></h2>', $tag->slug, $tag->slug );
 				if ( is_user_logged_in() ) {
-					echo '<p><small>TODO: Sort by open or close date to avoid incorrect store order (which is based on when the store first opened).</small></p>';
+					echo '<p class="admin-note"><small>TODO: Sort by open or close date to avoid incorrect store order (which is based on when the store first opened).</small></p>';
 				// See: https://staging.blanchcentrehistory.com/1996/01/sky/ - History of unit should have Sky first, not last.
 				}
 
@@ -276,10 +279,15 @@ function bch_add_store_custom_field_info() {
     <?php
     ?>
     </div><!-- /#shop -->
-    <hr/>
+    <!--<hr/>-->
+	<details>
+	<summary>Found an error? Let me know...</summary>
     <?php
     // Add contact form to solicit updates.
     echo do_shortcode('[ninja_form id=2]');
+?>
+	</details>
+<?php
   } // End: if (is_single() && ('post' == get_post_type()))
 }
 
@@ -362,12 +370,15 @@ function bch_left_right_units() {
 		if ( ! empty( $unit_right ) ) {
 			$right_link = sprintf( '<a href="%s">Unit on right: %d &rarr;</a>', get_term_link( $unit_right ), $unit_right->name );
 		}
+		
+		if ( ! empty( $unit_left ) || ! empty( $unit_right ) ) {
 ?>
 <div class="archive-description single-unit-num">
 <div><?php echo $left_link; ?></div>
 <div><?php echo $right_link; ?></div>
 </div>
 <?
+		}
 	}
 }
 
