@@ -1,4 +1,15 @@
 /* BlanchCentreHistory.com */
+
+/* Place title and hamburger menu on same line on mobile. */
+.site-header .wrap { display: flex; justify-content: space-between; }
+@media only screen and (min-width: 960px) {
+	.site-header .wrap { display: initial; }
+}
+
+.admin-note { border: 1px dashed #ccc; font-style: italic; }
+
+summary { cursor: pointer; }
+
 /* Based on: http://wpsites.net/web-design/add-css-corner-ribbon-to-page-or-post-content/ */
 /*.shop-closed {
   overflow: hidden;
