@@ -10,6 +10,13 @@
 
 summary { cursor: pointer; }
 
+
+.stores-list { display: flex; flex-wrap: wrap; margin-bottom: 2em; }
+.stores-list div { border-bottom: 1px dashed #ccc; width: 50%; }
+@media only screen and (min-width: 960px) {
+	.stores-list div { width: 33%; }
+}
+
 /* Based on: http://wpsites.net/web-design/add-css-corner-ribbon-to-page-or-post-content/ */
 /*.shop-closed {
   overflow: hidden;
