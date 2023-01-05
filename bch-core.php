@@ -126,6 +126,22 @@ function bch_add_store_custom_field_info() {
     <div class="shop-info">
 
 <?php
+// TODO: Change this section to use 'dates_for_unit' repeater info.
+// Maybe get earliest opening date instead of 'opendate' and latest closing date similarly.
+// Unit(s) info to come from list of currently open units.
+if( have_rows( 'dates_for_unit' ) ) {
+    // Loop through rows.
+    while ( have_rows( 'dates_for_unit' ) ) {
+		the_row();
+        // Load sub field value.
+        $unit_num = get_sub_field( 'unit_num' );
+		$open_date = get_sub_field( 'open_date' );
+		$close_date = get_sub_field( 'close_date' );
+		printf( '<p>Unit: <a href="%s">%s</a>; Open: %s, Close: %s</p>', get_term_link( strval( $unit_num ), 'unit_num' ), $unit_num, $open_date, $close_date );
+    // End loop.
+    }
+}
+
   // Change Unit to Units when more than one tag/unit listed.
   $unit_text = 'Unit';
   $posttags = get_the_tags();
@@ -195,6 +211,7 @@ function bch_add_store_custom_field_info() {
 		  echo '<p>Sorry, there is no history for this store - the old data has not yet been converted to the new format.</p>';
 	  }
 
+// TODO: Rewrite this section to use 'unit_num' taxonomy instead of post tags.
 	if ( $posttags ) {
 		foreach($posttags as $tag) {
 			if (is_numeric($tag->slug)) {
