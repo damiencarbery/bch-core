@@ -122,10 +122,6 @@ function bch_add_store_custom_field_info() {
     $custom = get_post_custom($post->ID);
     $opendate = isset($custom['opendate'][0]) ? $custom['opendate'][0] : '1996-01-01';
     $closeddate = isset($custom['closeddate'][0]) ? strftime('%B %Y', strtotime($custom['closeddate'][0])) : '';
-    $url = '';
-    if (array_key_exists('url', $custom)) {
-        $url = $custom['url'][0];
-    }
     ?>
     <div class="shop-info">
 
@@ -158,11 +154,15 @@ function bch_add_store_custom_field_info() {
     else {
         echo '</p>';
     }
-    if (strlen($url)) {
-    ?>
-      <p>Web site: <?php echo '<strong><a href="', $url, '">', $url, '</a></strong>'; ?></p>
-    <?php
-    }
+
+	// Allow for multiple urls (as is case with Heatons/Sports World.
+	if (array_key_exists('url', $custom)) {
+		$urls = array();
+		foreach ( $custom['url'] as $url ) {
+			$urls[] = sprintf( '<strong><a href="%s">%s</a></strong>', $url, $url );
+		}
+		echo '<p>Web site: ', join( ' &amp; ', $urls ), '</p>';
+	}
 
 /*
       // SELECT `bchsg_postmeta.post_id` FROM `bchsg_postmeta` INNER JOIN `bchsg_posts` WHERE `bchsg_postmeta.meta_key` REGEXP 'bchsg_postmeta.dates_for_unit_[[:digit:]]+_unit_number' AND `bchsg_postmeta.meta_value` = '213' AND `bchsg_posts.ID`=`bchsg_postmeta.post_id` AND `bchsg_posts.post_status`='publish'
@@ -396,6 +396,41 @@ function bch_change_search_form_text( $placeholder ) {
 add_filter( 'acf/settings/remove_wp_meta_box', '__return_false' );
 
 
+add_shortcode( 'stores_alphabetically', 'bch_list_stores_alphabetically' );
+function bch_list_stores_alphabetically( $atts, $content, $code ) {
+	$atts = shortcode_atts( array(
+			'list_closed' => false,
+	  ), $atts );
+	  
+	$args = array( 'order' => 'ASC', 'orderby' => 'title', 'posts_per_page'=> -1 );
+	$closed_cat_id = 187;
+	if ( $atts[ 'list_closed' ] ) {
+		$args[ 'cat' ] = $closed_cat_id;  // Only list Closed.
+	}
+	else {
+		$args[ 'cat' ] = '-' . $closed_cat_id;  // Exclude Closed.
+	}
+
+	$query = new WP_Query( $args );
+	ob_start();
+	if ( $query->have_posts() ) {
+		$i = 0;
+		echo '<div class="stores-list">';
+		while ( $query->have_posts() ) {
+			$query->the_post();
+			printf( '<div><a href="%s">%s</a></div>', get_permalink(), get_the_title() );
+			$i++;
+		}
+		echo '</div>';
+	} else {
+		// No posts found, return nothing.
+		ob_end_clean();
+		return '';
+	}
+	return '<p>' . $i . ' stores.</p>' . ob_get_clean();
+}
+
+
 // Register Custom Taxonomy for the Unit numbers.
 add_action( 'init', 'create_unit_num_taxonomy', 0 );
 function create_unit_num_taxonomy() {
@@ -504,3 +539,7 @@ function bch_disable_genesis_seo() {
 
 	//remove_action( 'unit_num_edit_form', 'genesis_taxonomy_layout_options', 10, 2 );
 }
+
+
+// No Edit link at bottom of post/page.
+add_filter('genesis_edit_post_link', '__return_false' );
