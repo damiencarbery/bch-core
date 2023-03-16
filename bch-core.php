@@ -122,6 +122,7 @@ function bch_add_store_custom_field_info() {
     $custom = get_post_custom($post->ID);
     $opendate = isset($custom['opendate'][0]) ? $custom['opendate'][0] : '1996-01-01';
     $closeddate = isset($custom['closeddate'][0]) ? strftime('%B %Y', strtotime($custom['closeddate'][0])) : '';
+	//error_log( 'Custom for post ' . $post->ID . ':' . var_export( $custom, true ) );
     ?>
     <div class="shop-info">
 
@@ -130,15 +131,27 @@ function bch_add_store_custom_field_info() {
 // Maybe get earliest opening date instead of 'opendate' and latest closing date similarly.
 // Unit(s) info to come from list of currently open units.
 if( have_rows( 'dates_for_unit' ) ) {
+	// TODO: Create empty arrays to note open and closed units.
+	// And if there are mutiple open units (e.g. Lifestyle has multiple; Eason is in two units).
+	$open_unit_tags = array(); // List currently open units 
+	$open_unit_dates = array();  // Index by open date for sorting.
+	$closed_unit_dates = array();  // Index by open date for sorting.
+
     // Loop through rows.
     while ( have_rows( 'dates_for_unit' ) ) {
 		the_row();
         // Load sub field value.
-        $unit_num = get_sub_field( 'unit_num' );
+        $unit_num = get_sub_field( 'unit_num' );  // Received term object.
 		$open_date = get_sub_field( 'open_date' );
 		$close_date = get_sub_field( 'close_date' );
-		printf( '<p>Unit: <a href="%s">%s</a>; Open: %s, Close: %s</p>', get_term_link( strval( $unit_num ), 'unit_num' ), $unit_num, $open_date, $close_date );
-    // End loop.
+		//error_log( sprintf( 'Unit: %d; Open: %s; Close: %s', $unit_num, $open_date, $close_date ) );
+
+		// TODO: Store the open and close dates in the arrays above.
+
+		// List unit/open/close info.
+		if ( is_user_logged_in() ) {
+			printf( '<p class="admin-note">Unit: <a href="%s">%s</a>; Open: %s, Close: %s</p>', get_term_link( $unit_num, 'unit_num' ), $unit_num->name, $open_date, $close_date );
+		}
     }
 }
 
