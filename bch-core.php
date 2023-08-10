@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.1
+Version: 0.2
 */
 
 
@@ -150,7 +150,10 @@ if( have_rows( 'dates_for_unit' ) ) {
 
 		// List unit/open/close info.
 		if ( is_user_logged_in() ) {
-			printf( '<p class="admin-note">Unit: <a href="%s">%s</a>; Open: %s, Close: %s</p>', get_term_link( $unit_num, 'unit_num' ), $unit_num->name, $open_date, $close_date );
+			$term_link = get_term_link( $unit_num, 'unit_num' );
+			if ( !is_wp_error( $term_link ) ) {
+				printf( '<p class="admin-note">Unit: <a href="%s">%s</a>; Open: %s, Close: %s</p>', $term_link, $unit_num->name, $open_date, $close_date );
+			}
 		}
     }
 }
@@ -200,7 +203,7 @@ if( have_rows( 'dates_for_unit' ) ) {
 */
 	  
     // Add history of this unit.
-      echo '<h2>Store History</h2>';
+      echo '<h2>', get_the_title(), ' history in Blanchardstown Centre</h2>';
       $dates_for_unit = get_field( 'dates_for_unit' );
       if ( $dates_for_unit ) {
           echo '<ul>';
@@ -253,7 +256,7 @@ if( have_rows( 'dates_for_unit' ) ) {
 					while ( $the_query->have_posts() ) {
 						$the_query->the_post();
 						
-						echo '<li><a href="', the_permalink(), '">', the_title(), '</a> ';
+						echo '<li><a href="', get_permalink(), '">', get_the_title(), '</a> ';
 						
 						$dates_for_unit = get_field( 'dates_for_unit' );
 						if ( $dates_for_unit ) {
