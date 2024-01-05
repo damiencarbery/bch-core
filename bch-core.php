@@ -116,67 +116,72 @@ function bch_tag_order_by_opendate($query) {
 
 
 function bch_add_store_custom_field_info() {
-  global $post;
- 
   if (is_single() && ('post' == get_post_type())) {
-    $custom = get_post_custom($post->ID);
-    $opendate = isset($custom['opendate'][0]) ? $custom['opendate'][0] : '1996-01-01';
+    $custom = get_post_custom( get_the_ID() );
+    //$opendate = isset($custom['opendate'][0]) ? $custom['opendate'][0] : '1996-01-01';
     $closeddate = isset($custom['closeddate'][0]) ? strftime('%B %Y', strtotime($custom['closeddate'][0])) : '';
-	//error_log( 'Custom for post ' . $post->ID . ':' . var_export( $custom, true ) );
+	//error_log( 'Custom for post ' . get_the_ID() . ':' . var_export( $custom, true ) );
     ?>
     <div class="shop-info">
 
 <?php
-// TODO: Change this section to use 'dates_for_unit' repeater info.
-// Maybe get earliest opening date instead of 'opendate' and latest closing date similarly.
-// Unit(s) info to come from list of currently open units.
-if( have_rows( 'dates_for_unit' ) ) {
 	// TODO: Create empty arrays to note open and closed units.
-	// And if there are mutiple open units (e.g. Lifestyle has multiple; Eason is in two units).
+	// And if there are mutiple open units (e.g. Lifestyle has multiple; Eason is in two units [on different floors]).
 	$open_unit_tags = array(); // List currently open units 
 	$open_unit_dates = array();  // Index by open date for sorting.
 	$closed_unit_dates = array();  // Index by open date for sorting.
 
-    // Loop through rows.
-    while ( have_rows( 'dates_for_unit' ) ) {
-		the_row();
-        // Load sub field value.
-        $unit_num = get_sub_field( 'unit_num' );  // Received term object.
-		$open_date = get_sub_field( 'open_date' );
-		$close_date = get_sub_field( 'close_date' );
-		//error_log( sprintf( 'Unit: %d; Open: %s; Close: %s', $unit_num, $open_date, $close_date ) );
+	$first_open_date = date( 'Y-m-d' );
+	$last_close_date = '1996-01-01';
 
-		// TODO: Store the open and close dates in the arrays above.
+	// TODO: Change this section to use 'dates_for_unit' repeater info.
+	// Maybe get earliest opening date instead of 'opendate' and latest closing date similarly.
+	// Unit(s) info to come from list of currently open units.
+	if ( have_rows( 'dates_for_unit' ) ) {
+		// Loop through rows.
+		while ( have_rows( 'dates_for_unit' ) ) {
+			the_row();
+			// Load sub field value.
+			$unit_num = get_sub_field( 'unit_num' );  // Received term object.
+			$open_date = get_sub_field( 'open_date' );
+			$close_date = get_sub_field( 'close_date' );
+			//error_log( sprintf( 'Unit: %d; Open: %s; Close: %s', $unit_num, $open_date, $close_date ) );
 
-		// List unit/open/close info.
-		if ( is_user_logged_in() ) {
-			$term_link = get_term_link( $unit_num, 'unit_num' );
-			if ( !is_wp_error( $term_link ) ) {
-				printf( '<p class="admin-note">Unit: <a href="%s">%s</a>; Open: %s, Close: %s</p>', $term_link, $unit_num->name, $open_date, $close_date );
+			// TODO: Store the open and close dates in the arrays above.
+			if ( empty( $close_date ) ) {
+				$open_unit_tags[] = $unit_num->name;
+			}
+			else {
+				// If the store closed later when in this unit then store that date.
+				$last_close_date = ( $close_date > $last_close_date ) ? $close_date : $last_close_date;
+			}
+			// If the store opened earlier when in this unit then store that date.
+			$first_open_date = ( $open_date < $first_open_date ) ? $open_date : $first_open_date;
+
+			// List unit/open/close info.
+			if ( is_user_logged_in() ) {
+				$term_link = get_term_link( $unit_num, 'unit_num' );
+				if ( !is_wp_error( $term_link ) ) {
+					printf( '<p class="admin-note">Unit: <a href="%s">%s</a>; Open: %s, Close: %s</p>', $term_link, $unit_num->name, $open_date, $close_date );
+				}
 			}
 		}
-    }
-}
+	}
 
-  // Change Unit to Units when more than one tag/unit listed.
-  $unit_text = 'Unit';
-  $posttags = get_the_tags();
-  if ($posttags) {
-	  if (count($posttags) > 1) {
-		  $unit_text = 'Units';
-	  }
-
-      $units = array();
-      foreach($posttags as $tag) {
-          $units[] = sprintf('<a href="%s">%s</a>', get_tag_link($tag->term_id), $tag->name); 
-      }
-      echo '<p>', $unit_text, ': ', implode(', ', $units), '</p>';
-  }
-  else {
-	  echo '<p style="color: red">NOTE: No unit specified.</p>';
-  }
+	// Change Unit to Units when more than one tag/unit listed.
+	// This section lists the units the store currently occupies.
+	$unit_text = 'Unit';
+	if ( count( $open_unit_tags ) > 1 ) {
+		$unit_text = 'Units';
+	}
+	foreach ( $open_unit_tags as $unit_num ) {
+		$units[] = sprintf('<a href="%s">%s</a>', get_term_link( $unit_num, 'unit_num' ), $unit_num ); 
+	}
+	echo '<p>', $unit_text, ': ', implode(', ', $units), '</p>';
+	
+	// Show the earliest open date of the store.
 ?>
-    <p>Opened: <strong><?php echo strftime('%B %Y', strtotime($opendate)); ?></strong>
+	<p>Opened: <strong><?php echo date( 'F Y', strtotime( $first_open_date ) ); ?></strong>
     <?php
     if (strlen($closeddate)) {
     ?>
@@ -197,44 +202,79 @@ if( have_rows( 'dates_for_unit' ) ) {
 	}
 
 /*
-      // SELECT `bchsg_postmeta.post_id` FROM `bchsg_postmeta` INNER JOIN `bchsg_posts` WHERE `bchsg_postmeta.meta_key` REGEXP 'bchsg_postmeta.dates_for_unit_[[:digit:]]+_unit_number' AND `bchsg_postmeta.meta_value` = '213' AND `bchsg_posts.ID`=`bchsg_postmeta.post_id` AND `bchsg_posts.post_status`='publish'
-	  // Need to INNER JOIN with bchsg_posts to ensure that `ID`='213' `post_status`=='publish' results
-/*	  SELECT bchsg_postmeta.`post_id` FROM bchsg_postmeta INNER JOIN bchsg_posts WHERE bchsg_postmeta.`meta_key` REGEXP 'dates_for_unit_[[:digit:]]+_unit_number' AND bchsg_postmeta.`meta_value` = '213' AND bchsg_posts.`ID`=bchsg_postmeta.`post_id` AND bchsg_posts.`post_status`='publish'
+      // SELECT `bchsg_postmeta.post_id` FROM `bchsg_postmeta` INNER JOIN `bchsg_posts` WHERE `bchsg_postmeta.meta_key` REGEXP 'bchsg_postmeta.dates_for_unit_[[:digit:]]+_unit_number' AND `bchsg_postmeta.meta_value` = '214' AND `bchsg_posts.ID`=`bchsg_postmeta.post_id` AND `bchsg_posts.post_status`='publish'
+
+	  // Need to INNER JOIN with bchsg_posts to ensure that `ID`='214' `post_status`=='publish' results
+	  SELECT bchsg_postmeta.`post_id` FROM bchsg_postmeta INNER JOIN bchsg_posts WHERE bchsg_postmeta.`meta_key` REGEXP 'dates_for_unit_[[:digit:]]+_unit_number' AND bchsg_postmeta.`meta_value` = '214' AND bchsg_posts.`ID`=bchsg_postmeta.`post_id` AND bchsg_posts.`post_status`='publish'
+
+	Returns: 579 (Zara) and 1407 (Lego).
 */
 	  
     // Add history of this unit.
-      echo '<h2>', get_the_title(), ' history in Blanchardstown Centre</h2>';
-      $dates_for_unit = get_field( 'dates_for_unit' );
-      if ( $dates_for_unit ) {
-          echo '<ul>';
-          
-		  $store_history = array();
-          foreach ( $dates_for_unit as $dates ) {
-			  $open_date = date( 'F Y', strtotime( $dates[ 'open_date' ] ) );
-			  if ( ! empty( $dates[ 'close_date' ] ) ) {
+	printf( '<h2>%s history in Blanchardstown Centre</h2>', get_the_title() );
+	$this_unit_date_strs = array(); // Store some strings for later.
+	$dates_for_unit = get_field( 'dates_for_unit' );
+	if ( $dates_for_unit ) {
+		echo '<ul>';
+
+		$store_history = array();
+		foreach ( $dates_for_unit as $dates ) {
+			$open_date = date( 'F Y', strtotime( $dates[ 'open_date' ] ) );
+			if ( ! empty( $dates[ 'close_date' ] ) ) {
 				$close_date = date( 'F Y', strtotime( $dates[ 'close_date' ] ) );
-				$store_history[] = sprintf('<li><a href="/tag/%s/">%s</a> (%s - %s)</li>', $dates[ 'unit_number' ], $dates[ 'unit_number' ], $open_date, $close_date );
-			  }
-			  else {
-				  $store_history[] = sprintf('<li><a href="/tag/%s/">%s</a> (since %s)</li>', $dates[ 'unit_number' ], $dates[ 'unit_number' ], $open_date );
-			  }
-          }
-          
-		  echo implode( '', array_reverse( $store_history ) );
-          echo '</ul>';
-      }
-	  else {
-		  echo '<p>Sorry, there is no history for this store - the old data has not yet been converted to the new format.</p>';
-	  }
+				$store_history[] = sprintf('<li><a href="%s">%s</a> (%s - %s)</li>', get_term_link( $dates[ 'unit_number' ], 'unit_num' ), $dates[ 'unit_number' ], $open_date, $close_date );
+				$this_unit_date_strs[ $dates[ 'unit_number' ] ] = sprintf('(%s - %s)</li>', $open_date, $close_date );
+			}
+			else {
+				$store_history[] = sprintf('<li><a href="%s">%s</a> (since %s)</li>', get_term_link( $dates[ 'unit_number' ], 'unit_num' ), $dates[ 'unit_number' ], $open_date );
+				$this_unit_date_strs[ $dates[ 'unit_number' ] ] = sprintf('(since %s)</li>', $open_date );
+			}
+		}
+
+		echo implode( '', array_reverse( $store_history ) );
+		echo '</ul>';
+	}
+	else {
+		echo '<p>Sorry, there is no history for this store - the old data has not yet been converted to the new format.</p>';
+	}
+
+echo '<pre>', var_export( $this_unit_date_strs, true ), '</pre>';
+	// List the history for the unit.
+	if ( $dates_for_unit ) {
+		global $wpdb;
+		
+		foreach ( $open_unit_tags as $unit_num ) {
+			// ToDo: Explain the SQL.
+			$sql = $wpdb->prepare( "SELECT {$wpdb->prefix}postmeta.`post_id` FROM {$wpdb->prefix}postmeta INNER JOIN {$wpdb->prefix}posts WHERE {$wpdb->prefix}postmeta.`meta_key` REGEXP 'dates_for_unit_[[:digit:]]+_unit_number' AND {$wpdb->prefix}postmeta.`meta_value` = '%d' AND {$wpdb->prefix}posts.`ID`={$wpdb->prefix}postmeta.`post_id` AND {$wpdb->prefix}posts.`post_status`='publish'", $unit_num );
+			
+			$stores_in_unit = $wpdb->get_col( $sql );
+			if ( $stores_in_unit ) {
+				printf( '<h2>History of <a href="%s">unit %d</a></h2>', get_term_link( $unit_num, 'unit_num' ), $unit_num );
+				echo '<ul>';
+				foreach ( $stores_in_unit as $unit_id ) {
+					$date_range = '(TBD)';
+// ToDo: This check is not working as expected.
+					if ( array_key_exists( $unit_id, $this_unit_date_strs ) ) {
+						$date_range = $this_unit_date_strs[ $unit_id ];
+					}
+					printf( '<li><a href="%s">%s</a> (post id: %d) %s</li>', get_permalink( $unit_id ), get_the_title( $unit_id ), $unit_id, $date_range );
+				}
+				echo '</ul>';
+			}
+			//echo '<pre>Unit num: ', $unit_num, "\n", var_export( $stores_in_unit, true ), '</pre>';
+		}
+
+	}
 
 // TODO: Rewrite this section to use 'unit_num' taxonomy instead of post tags.
+	$posttags = get_the_tags();
 	if ( $posttags ) {
 		foreach($posttags as $tag) {
 			if (is_numeric($tag->slug)) {
 				
-				printf( '<h2>History of unit <a href="/tag/%s/">%s</a></h2>', $tag->slug, $tag->slug );
+				printf( '<h2>History of unit <a href="/tag/%s/">%s</a> (with tags)</h2>', $tag->slug, $tag->slug );
 				if ( is_user_logged_in() ) {
-					echo '<p class="admin-note"><small>TODO: Sort by open or close date to avoid incorrect store order (which is based on when the store first opened).</small></p>';
+					echo '<p class="admin-note"><small>TODO: Sort by open or close date to avoid incorrect store order (which is based on when the store first opened).<br/>This section should only have 1 open store - rest should be closed.</small></p>';
 				// See: https://staging.blanchcentrehistory.com/1996/01/sky/ - History of unit should have Sky first, not last.
 				}
 
