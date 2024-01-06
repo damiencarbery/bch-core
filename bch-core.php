@@ -63,20 +63,20 @@ function bch_taxonomy_title($title, $sep, $seplocation) {
 
 
 // Filter to change $ to % in query's WHERE clause.
-add_filter('posts_where', 'my_posts_where');
 function my_posts_where( $where ) {
-	
 	$where = str_replace("meta_key = 'dates_for_unit_\$_unit_number", "meta_key LIKE 'dates_for_unit_%_unit_number", $where);
 
 	return $where;
 }
 
 
+// TODO: This may not be needed if 'unit_num' taxonomy is being used, or
+// may need significant rework to sort by ACF repeater field values.
 // Sort tag archive by unit open date.
 // See: http://www.billerickson.net/customize-the-wordpress-query/
 add_action('pre_get_posts', 'bch_tag_order_by_opendate');
 function bch_tag_order_by_opendate($query) {
-	if ( ! is_tag() ) { return; }
+	if ( ! is_tax( 'unit_num' ) ) { return; }
 
 	if ( is_user_logged_in() ) {
 		if ($query->is_main_query()) {
@@ -108,10 +108,29 @@ function bch_tag_order_by_opendate($query) {
         $query->set('orderby', 'meta_value' );*/
 		
 		if ( is_user_logged_in() ) {
-			echo "<p>BCH_TAG query_vars:</p>";
-			echo '<!-- ', var_export($query->query_vars, true), '-->';
+			echo '<details>';
+			echo '<summary>BCH_TAG query_vars:</summary>';
+			echo '<pre>', var_export($query->query_vars, true), '</pre>';
+			echo '</details>';
 		}
     }
+}
+
+
+// Given open and close dates (latter may be empty) return a string with
+// the open and close dates as '(OPEN - CLOSE)'  or '(since OPEN)'. OPEN
+// and CLOSE will be in 'full_month_name full_year' format.
+function bch_unit_date_range( $open_date, $close_date ) {
+			$open_date = date( 'F Y', strtotime( $open_date ) );
+			if ( ! empty( $close_date ) ) {
+				$close_date = date( 'F Y', strtotime( $close_date ) );
+				return sprintf( '(%s - %s)', $open_date, $close_date );
+			}
+			else {
+
+				return sprintf( '(since %s)', $open_date );
+			}
+
 }
 
 
@@ -131,6 +150,8 @@ function bch_add_store_custom_field_info() {
 	$open_unit_dates = array();  // Index by open date for sorting.
 	$closed_unit_dates = array();  // Index by open date for sorting.
 
+	// Initialise first/last to impossible values so that they will be overwritten by
+	// valid values in later loops.
 	$first_open_date = date( 'Y-m-d' );
 	$last_close_date = '1996-01-01';
 
@@ -142,7 +163,7 @@ function bch_add_store_custom_field_info() {
 		while ( have_rows( 'dates_for_unit' ) ) {
 			the_row();
 			// Load sub field value.
-			$unit_num = get_sub_field( 'unit_num' );  // Received term object.
+			$unit_num = get_sub_field( 'unit_num' );  // Receives the 'unit_num' taxonomy object.
 			$open_date = get_sub_field( 'open_date' );
 			$close_date = get_sub_field( 'close_date' );
 			//error_log( sprintf( 'Unit: %d; Open: %s; Close: %s', $unit_num, $open_date, $close_date ) );
@@ -177,7 +198,7 @@ function bch_add_store_custom_field_info() {
 	foreach ( $open_unit_tags as $unit_num ) {
 		$units[] = sprintf('<a href="%s">%s</a>', get_term_link( $unit_num, 'unit_num' ), $unit_num ); 
 	}
-	echo '<p>', $unit_text, ': ', implode(', ', $units), '</p>';
+	printf( '<p>%s: %s</p>', $unit_text, implode(', ', $units) );
 	
 	// Show the earliest open date of the store.
 ?>
@@ -198,7 +219,7 @@ function bch_add_store_custom_field_info() {
 		foreach ( $custom['url'] as $url ) {
 			$urls[] = sprintf( '<strong><a href="%s">%s</a></strong>', $url, $url );
 		}
-		echo '<p>Web site: ', join( ' &amp; ', $urls ), '</p>';
+		printf( '<p>Web site: %s</p>', join( ' &amp; ', $urls ) );
 	}
 
 /*
@@ -219,16 +240,8 @@ function bch_add_store_custom_field_info() {
 
 		$store_history = array();
 		foreach ( $dates_for_unit as $dates ) {
-			$open_date = date( 'F Y', strtotime( $dates[ 'open_date' ] ) );
-			if ( ! empty( $dates[ 'close_date' ] ) ) {
-				$close_date = date( 'F Y', strtotime( $dates[ 'close_date' ] ) );
-				$store_history[] = sprintf('<li><a href="%s">%s</a> (%s - %s)</li>', get_term_link( $dates[ 'unit_number' ], 'unit_num' ), $dates[ 'unit_number' ], $open_date, $close_date );
-				$this_unit_date_strs[ $dates[ 'unit_number' ] ] = sprintf('(%s - %s)</li>', $open_date, $close_date );
-			}
-			else {
-				$store_history[] = sprintf('<li><a href="%s">%s</a> (since %s)</li>', get_term_link( $dates[ 'unit_number' ], 'unit_num' ), $dates[ 'unit_number' ], $open_date );
-				$this_unit_date_strs[ $dates[ 'unit_number' ] ] = sprintf('(since %s)</li>', $open_date );
-			}
+			$this_unit_date_strs[ $dates[ 'unit_number' ] ] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
+			$store_history[] = sprintf('<li><a href="%s">%s</a> %s</li>', get_term_link( $dates[ 'unit_number' ], 'unit_num' ), $dates[ 'unit_number' ], bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ));
 		}
 
 		echo implode( '', array_reverse( $store_history ) );
@@ -238,26 +251,26 @@ function bch_add_store_custom_field_info() {
 		echo '<p>Sorry, there is no history for this store - the old data has not yet been converted to the new format.</p>';
 	}
 
-echo '<pre>', var_export( $this_unit_date_strs, true ), '</pre>';
+
 	// List the history for the unit.
 	if ( $dates_for_unit ) {
 		global $wpdb;
 		
 		foreach ( $open_unit_tags as $unit_num ) {
-			// ToDo: Explain the SQL.
+			// TODO: Explain the SQL.
 			$sql = $wpdb->prepare( "SELECT {$wpdb->prefix}postmeta.`post_id` FROM {$wpdb->prefix}postmeta INNER JOIN {$wpdb->prefix}posts WHERE {$wpdb->prefix}postmeta.`meta_key` REGEXP 'dates_for_unit_[[:digit:]]+_unit_number' AND {$wpdb->prefix}postmeta.`meta_value` = '%d' AND {$wpdb->prefix}posts.`ID`={$wpdb->prefix}postmeta.`post_id` AND {$wpdb->prefix}posts.`post_status`='publish'", $unit_num );
 			
 			$stores_in_unit = $wpdb->get_col( $sql );
 			if ( $stores_in_unit ) {
 				printf( '<h2>History of <a href="%s">unit %d</a></h2>', get_term_link( $unit_num, 'unit_num' ), $unit_num );
 				echo '<ul>';
-				foreach ( $stores_in_unit as $unit_id ) {
-					$date_range = '(TBD)';
-// ToDo: This check is not working as expected.
-					if ( array_key_exists( $unit_id, $this_unit_date_strs ) ) {
-						$date_range = $this_unit_date_strs[ $unit_id ];
+				foreach ( $stores_in_unit as $unit_post_id ) {
+					$date_range = '(TBD)';  // TODO: Examine $dates_for_unit of post $unit_post_id and find those with 
+
+					if ( get_the_ID() == $unit_post_id ) {
+						$date_range = $this_unit_date_strs[ $unit_num ];
 					}
-					printf( '<li><a href="%s">%s</a> (post id: %d) %s</li>', get_permalink( $unit_id ), get_the_title( $unit_id ), $unit_id, $date_range );
+					printf( '<li><a href="%s">%s</a> (post id: %d) %s</li>', get_permalink( $unit_post_id ), get_the_title( $unit_post_id ), $unit_post_id, $date_range );
 				}
 				echo '</ul>';
 			}
@@ -287,6 +300,7 @@ echo '<pre>', var_export( $this_unit_date_strs, true ), '</pre>';
 					//'orderby'     => 'modified',  // Close - but still need close date sorting.
 				);
 
+				add_filter( 'posts_where', 'my_posts_where' ); // Change $ in 'dates_for_unit_$_unit_number' to % for SQL.
 				$the_query = new WP_Query( $args );
 
 				$stores_by_date = array();
@@ -296,32 +310,21 @@ echo '<pre>', var_export( $this_unit_date_strs, true ), '</pre>';
 					while ( $the_query->have_posts() ) {
 						$the_query->the_post();
 						
-						echo '<li><a href="', get_permalink(), '">', get_the_title(), '</a> ';
+						printf( '<li><a href="%s">%s</a> ', get_permalink(), get_the_title() );
 						
 						$dates_for_unit = get_field( 'dates_for_unit' );
 						if ( $dates_for_unit ) {
 							$unit_history = array();
 							foreach ( $dates_for_unit as $dates ) {
-								$open_date = date( 'F Y', strtotime( $dates[ 'open_date' ] ) );
 								if ( $dates[ 'unit_number' ] == $tag->slug ) {
-									if ( ! empty( $dates[ 'close_date' ] ) ) {
-										$close_date = date( 'F Y', strtotime( $dates[ 'close_date' ] ) );
-										//printf( '(%s - %s)', $dates[ 'open_date' ], $dates[ 'close_date' ] );
-										$unit_history[] = sprintf( '(%s - %s)', $open_date, $close_date );
-										$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<a href="%s">%s</a> (%s - %s)', get_the_permalink(), get_the_title(), $open_date, $close_date );
-									}
-									else {
-										//printf( '(since %s)', $dates[ 'open_date' ] );
-										$unit_history[] = sprintf( '(since %s)', $open_date );
-										$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<a href="%s">%s</a> (since %s)', get_the_permalink(), get_the_title(), $open_date );
-									}
+									$unit_history[] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
+									$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<a href="%s">%s</a> %s', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
 								}
 							}
 							echo implode( ' &amp; ', array_reverse( $unit_history ) );
 						}
 						else {
 							echo '(No open/close date info)';
-							
 						}
 						
 						echo '</li>';
@@ -331,17 +334,18 @@ echo '<pre>', var_export( $this_unit_date_strs, true ), '</pre>';
 				}
 
 				wp_reset_query();
+				remove_filter( 'posts_where', 'my_posts_where' );
 
 				if ( ! empty( $stores_by_date ) ) {
 					ksort( $stores_by_date );
 					echo '<ul>';
 					foreach ( array_reverse( $stores_by_date ) as $date ) {
-						echo '<li>', $date, '</li>';
+						printf( '<li>%s</li>', $date );
 					}
 					echo '</ul>';
 				}
 				else {
-					echo '<p>Sorry, there is no history for unit ', $tag->slug, '.</p>';
+					printf( '<p>Sorry, there is no history for unit %d.</p>', $tag->slug );
 				}
 			}
 		}
