@@ -63,8 +63,8 @@ function bch_taxonomy_title($title, $sep, $seplocation) {
 
 
 // Filter to change $ to % in query's WHERE clause.
-function my_posts_where( $where ) {
-	$where = str_replace("meta_key = 'dates_for_unit_\$_unit_number", "meta_key LIKE 'dates_for_unit_%_unit_number", $where);
+function dates_for_unit_sql( $where ) {
+	$where = str_replace("meta_key = 'dates_for_unit_\$_unit_num", "meta_key LIKE 'dates_for_unit_%_unit_num", $where);
 
 	return $where;
 }
@@ -74,7 +74,7 @@ function my_posts_where( $where ) {
 // may need significant rework to sort by ACF repeater field values.
 // Sort tag archive by unit open date.
 // See: http://www.billerickson.net/customize-the-wordpress-query/
-add_action('pre_get_posts', 'bch_tag_order_by_opendate');
+//add_action('pre_get_posts', 'bch_tag_order_by_opendate');
 function bch_tag_order_by_opendate($query) {
 	if ( ! is_tax( 'unit_num' ) ) { return; }
 
@@ -155,7 +155,7 @@ function bch_add_store_custom_field_info() {
 	// Initialise first/last to impossible values so that they will be overwritten by
 	// valid values in later loops.
 	$first_open_date = date( 'Y-m-d' );
-	$last_close_date = '1996-01-01';
+	$last_close_date = null;
 
 	// TODO: Change this section to use 'dates_for_unit' repeater info.
 	// Maybe get earliest opening date instead of 'opendate' and latest closing date similarly.
@@ -208,18 +208,12 @@ function bch_add_store_custom_field_info() {
 	}
 	
 	// Show the earliest open date of the store.
-?>
-	<p>Opened: <strong><?php echo date( 'F Y', strtotime( $first_open_date ) ); ?></strong>
-    <?php
-	// TODO: Get this from ACF repeater.
-    if ( strlen( $closeddate ) ) {
-    ?>
-      <br />Closed: <?php echo '<strong>', $closeddate, '</strong>'; ?></p>
-    <?php
-    }
-    else {
-        echo '</p>';
-    }
+	printf( '<p>Opened: <strong>%s</strong>', date( 'F Y', strtotime( $first_open_date ) ) );
+	// If the store is no longer in Blanchardstown Centre then show last closure date.
+	if ( $last_close_date && empty( $open_unit_tags ) ) {
+		printf( '<br />Closed: <strong>%s</strong>', date( 'F Y', strtotime( $last_close_date ) ) );
+	}
+	echo '</p>';
 
 	// Allow for multiple urls (as is case with Heatons/Sports World.
 	if (array_key_exists('url', $custom)) {
@@ -248,8 +242,8 @@ function bch_add_store_custom_field_info() {
 
 		$store_history = array();
 		foreach ( $dates_for_unit as $dates ) {
-			$this_unit_date_strs[ $dates[ 'unit_number' ] ] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
-			$store_history[] = sprintf('<li><a href="%s">%s</a> %s</li>', get_term_link( $dates[ 'unit_number' ], 'unit_num' ), $dates[ 'unit_number' ], bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ));
+			$this_unit_date_strs[ $dates[ 'unit_num' ]->name ] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
+			$store_history[] = sprintf('<li><a href="%s">%s</a> %s</li>', get_term_link( $dates[ 'unit_num' ], 'unit_num' ), $dates[ 'unit_num' ]->name, bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ));
 		}
 
 		echo implode( '', array_reverse( $store_history ) );
@@ -265,14 +259,16 @@ function bch_add_store_custom_field_info() {
 		foreach ( $open_unit_tags as $unit_num ) {
 			// Based on code from: https://www.advancedcustomfields.com/resources/query-posts-custom-fields/
 			// See example: 4. Sub custom field values
+			$term = get_term_by( 'name', $unit_num, 'unit_num' );
 			$args = array(
 				'numberposts' => -1,
-				'meta_key'    => 'dates_for_unit_$_unit_number',
-				'meta_value'  => $unit_num,
+				'meta_key'    => 'dates_for_unit_$_unit_num',
+				'meta_value'  => $term->term_id, //Was: $unit_num,
 				//'orderby'     => 'modified',  // Close - but still need close date sorting.
 			);
 
-			add_filter( 'posts_where', 'my_posts_where' ); // Change $ in 'dates_for_unit_$_unit_number' to % for SQL.
+
+			add_filter( 'posts_where', 'dates_for_unit_sql' ); // Change $ in 'dates_for_unit_$_unit_num' to % for SQL.
 			$the_query = new WP_Query( $args );
 
 			$stores_by_date = array();
@@ -284,7 +280,7 @@ function bch_add_store_custom_field_info() {
 					if ( $dates_for_unit ) {
 						$unit_history = array();
 						foreach ( $dates_for_unit as $dates ) {
-							if ( $dates[ 'unit_number' ] == $unit_num ) {
+							if ( $dates[ 'unit_num' ]->term_id == $term->term_id ) {
 								$unit_history[] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
 								$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<li><a href="%s">%s</a> %s</li>', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
 							}
@@ -300,12 +296,12 @@ function bch_add_store_custom_field_info() {
 			}
 
 			wp_reset_query();
-			remove_filter( 'posts_where', 'my_posts_where' );
+			remove_filter( 'posts_where', 'dates_for_unit_sql' );
 
 			if ( ! empty( $stores_by_date ) ) {
-				ksort( $stores_by_date );
+				printf( '<h2>History of <a href="%s">unit %s</a></h2>', get_term_link( $unit_num, 'unit_num' ), $unit_num );
 
-				printf( '<h2>History of <a href="%s">unit %d</a></h2>', get_term_link( $unit_num, 'unit_num' ), $unit_num );
+				ksort( $stores_by_date );
 				echo '<ul>';
 				foreach ( array_reverse( $stores_by_date ) as $store_info ) {
 					printf( '%s', $store_info );
@@ -316,7 +312,6 @@ function bch_add_store_custom_field_info() {
 				printf( '<p>Sorry, there is no history for unit %d.</p>', $unit_num );
 			}
 		}
-
 	}
 ?>
     </div><!-- /.shop-info -->
@@ -338,7 +333,7 @@ function bch_add_store_custom_field_info() {
 
 // Add 'Closed' ribbon to posts with the 'closed' category.
 // Based on: http://sridharkatakam.com/add-new-ribbon-posts-published-last-7-days-genesis/
-//add_action( 'genesis_before_entry', 'sk_display_new_ribbon' );
+// ToDo: Consider getting this from ACF repeater field instead of relying on category being set.
 add_action( 'genesis_entry_header', 'sk_display_new_ribbon', 1 );
 function sk_display_new_ribbon() {
     /*if (!is_single()) {
