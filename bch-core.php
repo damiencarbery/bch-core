@@ -170,7 +170,7 @@ function bch_add_store_custom_field_info() {
 			$close_date = get_sub_field( 'close_date' );
 			//error_log( sprintf( 'Unit: %d; Open: %s; Close: %s', $unit_num, $open_date, $close_date ) );
 
-			// TODO: Store the open and close dates in the arrays above.
+			// Store the open units and maybe the close date.
 			if ( empty( $close_date ) ) {
 				$open_unit_tags[] = $unit_num->name;
 			}
@@ -207,8 +207,10 @@ function bch_add_store_custom_field_info() {
 		printf( '<p>%s: %s</p>', $unit_text, implode( ', ', $units ) );
 	}
 	
-	// Show the earliest open date of the store.
-	printf( '<p>Opened: <strong>%s</strong>', date( 'F Y', strtotime( $first_open_date ) ) );
+	// Show the earliest open date of the store. Check that there is a valid date stored.
+	if ( $first_open_date != date( 'Y-m-d' ) ) {
+		printf( '<p>Opened: <strong>%s</strong>', date( 'F Y', strtotime( $first_open_date ) ) );
+	}
 	// If the store is no longer in Blanchardstown Centre then show last closure date.
 	if ( $last_close_date && empty( $open_unit_tags ) ) {
 		printf( '<br />Closed: <strong>%s</strong>', date( 'F Y', strtotime( $last_close_date ) ) );
