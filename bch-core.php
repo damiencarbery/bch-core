@@ -38,7 +38,7 @@ function child_theme_setup() {
   add_action('genesis_entry_content', 'bch_add_store_custom_field_info', 20);
 
   // Add Left/Right unit to tag archive.
-  add_action( 'genesis_before_while', 'bch_left_right_units' );
+  //add_action( 'genesis_before_while', 'bch_left_right_units' );
 }
 
 
@@ -65,6 +65,7 @@ function bch_taxonomy_title($title, $sep, $seplocation) {
 // Filter to change $ to % in query's WHERE clause.
 function dates_for_unit_sql( $where ) {
 	$where = str_replace("meta_key = 'dates_for_unit_\$_unit_num", "meta_key LIKE 'dates_for_unit_%_unit_num", $where);
+	error_log( 'dates_for_unit_sql: ' . $where );
 
 	return $where;
 }
@@ -74,7 +75,7 @@ function dates_for_unit_sql( $where ) {
 // may need significant rework to sort by ACF repeater field values.
 // Sort tag archive by unit open date.
 // See: http://www.billerickson.net/customize-the-wordpress-query/
-//add_action('pre_get_posts', 'bch_tag_order_by_opendate');
+/*add_action('pre_get_posts', 'bch_tag_order_by_opendate');
 function bch_tag_order_by_opendate($query) {
 	if ( ! is_tax( 'unit_num' ) ) { return; }
 
@@ -102,11 +103,11 @@ function bch_tag_order_by_opendate($query) {
 		$query->set('meta_key', 'closedate');
         $query->set('orderby', 'meta_value');
         $query->set('order', 'DESC');
-        
+
         $query->set( 'posts_per_page', '2' );
-        /*
-        $query->set('orderby', 'meta_value' );*/
-		
+        
+        //$query->set('orderby', 'meta_value' );
+
 		if ( is_user_logged_in() ) {
 			echo '<details>';
 			echo '<summary>BCH_TAG query_vars:</summary>';
@@ -114,7 +115,7 @@ function bch_tag_order_by_opendate($query) {
 			echo '</details>';
 		}
     }
-}
+}*/
 
 
 // Given open and close dates (latter may be empty) return a string with
@@ -234,7 +235,7 @@ function bch_add_store_custom_field_info() {
 
 	Returns: 579 (Zara) and 1407 (Lego).
 */
-	  
+
     // Add history of this unit.
 	printf( '<h2>%s history in Blanchardstown Centre</h2>', get_the_title() );
 	$this_unit_date_strs = array(); // Store some strings for later.
@@ -269,7 +270,6 @@ function bch_add_store_custom_field_info() {
 				//'orderby'     => 'modified',  // Close - but still need close date sorting.
 			);
 
-
 			add_filter( 'posts_where', 'dates_for_unit_sql' ); // Change $ in 'dates_for_unit_$_unit_num' to % for SQL.
 			$the_query = new WP_Query( $args );
 
@@ -280,10 +280,10 @@ function bch_add_store_custom_field_info() {
 
 					$dates_for_unit = get_field( 'dates_for_unit' );
 					if ( $dates_for_unit ) {
-						$unit_history = array();
+						//$unit_history = array();
 						foreach ( $dates_for_unit as $dates ) {
 							if ( $dates[ 'unit_num' ]->term_id == $term->term_id ) {
-								$unit_history[] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
+								//$unit_history[] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
 								$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<li><a href="%s">%s</a> %s</li>', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
 							}
 						}
@@ -342,7 +342,7 @@ function sk_display_new_ribbon() {
         return;
     }*/
 	//global $post;
-    
+
     if (!in_category('closed')) {
         return;
     }
@@ -398,8 +398,9 @@ function bch_change_category_title( $null, $term_id, $key, $single ) {
 
 // Add links to unit on left and unit on right. This allows easy browsing of the site.
 function bch_left_right_units() {
-	if ( is_tax( 'unit_num' ) ) {
-		$unit_num = get_queried_object();
+	if ( true || is_tax( 'unit_num' ) ) {
+		//$unit_num = get_queried_object();
+		$unit_num = get_term_by( 'name', get_query_var( 'unit_num' ), 'unit_num' );
 
 		$left_link = '';
 		$unit_left = get_field( 'unit_on_left', 'unit_num_' . $unit_num->term_id );
@@ -420,9 +421,130 @@ function bch_left_right_units() {
 </div>
 <?
 		}
+
+		if ( empty( $unit_left ) && empty( $unit_right ) ) {
+?>
+<div class="archive-description">
+<p>Error: There is no left/right unit set for this unit.</p>
+<?php
+			if ( is_user_logged_in() ) {
+				printf( '<p><a href="/wp-admin/term.php?taxonomy=unit_num&tag_ID=%s&post_type=post">Edit unit %s</a></p>', $unit_num->term_id, $unit_num->name );
+			}
+?>
+</div>
+<?
+		}
 	}
 }
 
+
+// Handle custom url /unit_num/?
+add_action( 'init', 'bch_unit_num_rewrite_tag' );
+function bch_unit_num_rewrite_tag() {
+	add_rewrite_tag( '%unit_num%', '([^&]+)');
+	add_rewrite_rule('^unit_num/([^/]*)/?','index.php?unit_num=$matches[1]', 'top' );
+}
+
+// ToDo: Add pre_get_posts() - if unit_num found then change query to special 'unit_num' one.
+add_action('pre_get_posts', 'bch_pre_get_posts_unit_num');
+function bch_pre_get_posts_unit_num( $query ) {
+	if ( get_query_var( 'unit_num' ) ) {
+		if ( ! is_admin() && $query->is_main_query() && $query->is_home() ) {
+			//error_log( 'unit_num query var: ' . get_query_var( 'unit_num' ) );
+
+			$query->set( 'posts_per_page', -1 );  // Retrieve all stores.
+			$query->set( 'post_status', 'publish' );  // So that 'private' are not queried when logged in.
+
+			$query->set( 'meta_key', 'dates_for_unit_$_unit_num' );
+			add_filter( 'posts_where', 'dates_for_unit_sql' ); // Change $ in 'dates_for_unit_$_unit_num' to % for SQL.
+
+			// Use $unit_num term ID in query.
+			$unit_num_term = get_term_by( 'name', get_query_var( 'unit_num' ), 'unit_num' );
+			$query->set( 'meta_value', $unit_num_term->term_id );
+		}
+	}
+}
+
+
+add_action( 'genesis_before_loop', 'bch_genesis_before_loop', 5 );
+function bch_genesis_before_loop() {
+	if ( get_query_var( 'unit_num' ) ) {
+		//echo '<p>unit_num query var: ', get_query_var( 'unit_num' ), '</p>';
+
+		// Do not do standard Genesis loop (which would be a posts page loop).
+		remove_action( 'genesis_loop', 'genesis_do_loop' );
+
+		// Remove breadcrumbs.
+		remove_action( 'genesis_before_loop', 'genesis_do_breadcrumbs' );
+		// Could remove breadcrumbs with this filter:
+		//add_filter( 'genesis_do_breadcrumbs', '__return_true' );
+
+		// These do not appear to do anything on the unit archive page.
+		/*remove_action( 'genesis_before_loop', 'genesis_do_cpt_archive_title_description' );
+		remove_action( 'genesis_before_loop', 'genesis_do_date_archive_title' );
+		remove_action( 'genesis_before_loop', 'genesis_do_blog_template_heading' );
+		remove_action( 'genesis_before_loop', 'genesis_do_posts_page_heading' );
+		remove_action( 'genesis_before_loop', 'genesis_do_taxonomy_title_description', 15 );
+		remove_action( 'genesis_before_loop', 'genesis_do_author_title_description', 15 );
+		remove_action( 'genesis_before_loop', 'genesis_do_author_box_archive', 15 );*/
+
+		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_open', 5 );
+		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_headline' );
+		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_intro_text', 12 );
+		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_close', 15 );
+
+		// Instead do a custom loop showing the units.
+		add_action( 'genesis_loop', 'bch_unit_num_archive_loop' );
+	}
+}
+
+
+// Handle the loop for /unit_num/* urls.
+function bch_unit_num_archive_loop() {
+	if ( have_posts() ) {
+		$unit_num = get_query_var( 'unit_num' );
+		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
+
+		$stores_by_date = array();
+
+		while ( have_posts() ) {
+			the_post();
+
+			$dates_for_unit = get_field( 'dates_for_unit' );
+			if ( $dates_for_unit ) {
+				foreach ( $dates_for_unit as $dates ) {
+					if ( $dates[ 'unit_num' ]->term_id == $unit_num_term->term_id ) {
+						$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<li><a href="%s">%s</a> %s</li>', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
+					}
+				}
+			}
+		}
+
+		if ( ! empty( $stores_by_date ) ) {
+			genesis_do_archive_headings_open();
+			printf( '<h1 %s>History of unit %s</h1>', genesis_attr( 'archive-title' ), esc_html( $unit_num ) );
+			genesis_do_archive_headings_close();
+
+			ksort( $stores_by_date );  // Sort by keys (which are open date).
+			echo '<ul>';
+			foreach ( array_reverse( $stores_by_date ) as $store_info ) {
+				printf( '%s', $store_info );
+			}
+			echo '</ul>';
+
+			// Add Left/Right links after unit history list.
+			//add_action( 'genesis_after_loop', 'bch_left_right_units' );
+			bch_left_right_units();
+		}
+		else {
+			printf( '<p>Sorry, there is no history for unit %d.</p>', $unit_num );
+		}
+	}
+	else {
+		printf( '<p>Sorry, there is no history for unit %d.</p>', $unit_num );
+	}
+	remove_filter( 'posts_where', 'dates_for_unit_sql' );
+}
 
 
 // Change the search form text fronm 'Search this website' to 'Search for stores'.
@@ -442,7 +564,7 @@ function bch_list_stores_alphabetically( $atts, $content, $code ) {
 	$atts = shortcode_atts( array(
 			'list_closed' => false,
 	  ), $atts );
-	  
+
 	$args = array( 'order' => 'ASC', 'orderby' => 'title', 'posts_per_page'=> -1 );
 	$closed_cat_id = 187;
 	if ( $atts[ 'list_closed' ] ) {
@@ -506,7 +628,7 @@ function create_unit_num_taxonomy() {
 	$args = array(
 		'labels'                     => $labels,
 		'hierarchical'               => false,
-		'public'                     => true,
+		'public'                     => false,  // Disable archive. It will be handled with custom rewrite rules.
 		'show_ui'                    => true,
 		'show_admin_column'          => true,
 		'show_in_nav_menus'          => false,
@@ -526,7 +648,7 @@ function unit_num_add_columns( $columns ) {
 	//error_log( 'Taxonomy: ' . var_export( $taxonomy, true ) );
 
 	$insert_after = 'name';
-	
+
 	$position = array_search( $insert_after, array_keys( $columns ) );
 		if ( false !== $position ) {
 			$before = $columns;
@@ -571,7 +693,7 @@ function unit_num_add_column_data( $unused, $column, $term_id ) {
 }
 
 
-// Disable SEO settings globally (primarily so there isn't in the Unit Numbers taxonomy pages).
+// Disable SEO settings globally (primarily so it isn't in the Unit Numbers taxonomy pages).
 add_action( 'after_setup_theme', 'bch_disable_genesis_seo', 20 );
 function bch_disable_genesis_seo() {
 	if ( function_exists( 'genesis_disable_seo' ) ) {
@@ -582,5 +704,5 @@ function bch_disable_genesis_seo() {
 }
 
 
-// No Edit link at bottom of post/page.
+// Disable Edit link at bottom of post/page.
 add_filter('genesis_edit_post_link', '__return_false' );
