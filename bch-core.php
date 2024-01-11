@@ -501,11 +501,15 @@ function bch_genesis_before_loop() {
 
 // Handle the loop for /unit_num/* urls.
 function bch_unit_num_archive_loop() {
-	if ( have_posts() ) {
-		$unit_num = get_query_var( 'unit_num' );
-		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
+	$unit_num = get_query_var( 'unit_num' );
+	$stores_by_date = array();
 
-		$stores_by_date = array();
+	genesis_do_archive_headings_open();
+	printf( '<h1 %s>History of unit %s</h1>', genesis_attr( 'archive-title' ), esc_html( $unit_num ) );
+	genesis_do_archive_headings_close();
+
+	if ( have_posts() ) {
+		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
 
 		while ( have_posts() ) {
 			the_post();
@@ -519,30 +523,25 @@ function bch_unit_num_archive_loop() {
 				}
 			}
 		}
+	}
 
-		if ( ! empty( $stores_by_date ) ) {
-			genesis_do_archive_headings_open();
-			printf( '<h1 %s>History of unit %s</h1>', genesis_attr( 'archive-title' ), esc_html( $unit_num ) );
-			genesis_do_archive_headings_close();
-
-			ksort( $stores_by_date );  // Sort by keys (which are open date).
-			echo '<ul>';
-			foreach ( array_reverse( $stores_by_date ) as $store_info ) {
-				printf( '%s', $store_info );
-			}
-			echo '</ul>';
-
-			// Add Left/Right links after unit history list.
-			//add_action( 'genesis_after_loop', 'bch_left_right_units' );
-			bch_left_right_units();
+	if ( ! empty( $stores_by_date ) ) {
+		ksort( $stores_by_date );  // Sort by keys (which are open date).
+		echo '<ul>';
+		foreach ( array_reverse( $stores_by_date ) as $store_info ) {
+			printf( '%s', $store_info );
 		}
-		else {
-			printf( '<p>Sorry, there is no history for unit %d.</p>', $unit_num );
-		}
+		echo '</ul>';
+
 	}
 	else {
 		printf( '<p>Sorry, there is no history for unit %d.</p>', $unit_num );
 	}
+
+	// Add Left/Right links after unit history list.
+	//add_action( 'genesis_after_loop', 'bch_left_right_units' );
+	bch_left_right_units();
+
 	remove_filter( 'posts_where', 'dates_for_unit_sql' );
 }
 
