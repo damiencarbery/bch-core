@@ -172,8 +172,16 @@ function bch_add_store_custom_field_info() {
 			//error_log( sprintf( 'Unit: %d; Open: %s; Close: %s', $unit_num, $open_date, $close_date ) );
 
 			// Store the open units and maybe the close date.
+			// ToDo: No one is unit 239 so no 'History of 239' is shown: https://staging.blanchcentrehistory.com/2014/10/loccitane/
+			// May need to change the use of $open_unit_tags array there. Maybe store all units this store was in and use that.
 			if ( empty( $close_date ) ) {
-				$open_unit_tags[] = $unit_num->name;
+				// Add check whether 'Unit Dates' data is using new Unit Number (unit_num) taxonomy.
+				if ( false == $unit_num && is_user_logged_in() ) {
+					printf( '<p class="admin-note">Warning: New Unit Number not set. Old unit data: %d</p>', get_sub_field( 'unit_number' ) );
+				}
+				else {
+					$open_unit_tags[] = $unit_num->name;
+				}
 			}
 			else {
 				// If the store closed later when in this unit then store that date.
@@ -192,6 +200,7 @@ function bch_add_store_custom_field_info() {
 		}
 	}
 
+	printf( '<p class="admin-note">$open_unit_tags: %s</p>', var_export( $open_unit_tags, true ) );
 
 	// This section lists the units the store currently occupies.
 	// If the store is currently open then show current unit(s).
@@ -202,8 +211,14 @@ function bch_add_store_custom_field_info() {
 			$unit_text = 'Units';
 		}
 		$units = array();
+
 		foreach ( $open_unit_tags as $unit_num ) {
-			$units[] = sprintf('<a href="%s">%s</a>', get_term_link( $unit_num, 'unit_num' ), $unit_num ); 
+			if ( empty( $unit_num ) ) {
+				$units[] = 'empty';
+			}
+			else {
+				$units[] = sprintf('<a href="%s">%s</a>', get_term_link( $unit_num, 'unit_num' ), $unit_num ); 
+			}
 		}
 		printf( '<p>%s: %s</p>', $unit_text, implode( ', ', $units ) );
 	}
@@ -240,13 +255,20 @@ function bch_add_store_custom_field_info() {
 	printf( '<h2>%s history in Blanchardstown Centre</h2>', get_the_title() );
 	$this_unit_date_strs = array(); // Store some strings for later.
 	$dates_for_unit = get_field( 'dates_for_unit' );
+
 	if ( $dates_for_unit ) {
 		echo '<ul>';
 
 		$store_history = array();
 		foreach ( $dates_for_unit as $dates ) {
-			$this_unit_date_strs[ $dates[ 'unit_num' ]->name ] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
-			$store_history[] = sprintf('<li><a href="%s">%s</a> %s</li>', get_term_link( $dates[ 'unit_num' ], 'unit_num' ), $dates[ 'unit_num' ]->name, bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ));
+			// Add check whether 'Unit Dates' data is using new Unit Number (unit_num) taxonomy.
+			if ( false == $dates[ 'unit_num' ] && is_user_logged_in() ) {
+				printf( '<p class="admin-note">Warning: New Unit Number not set. Old unit data: %d</p>', $dates[ 'unit_number' ] );
+			}
+			else {
+				$this_unit_date_strs[ $dates[ 'unit_num' ]->name ] = bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] );
+				$store_history[] = sprintf('<li><a href="%s">%s</a> %s</li>', get_term_link( $dates[ 'unit_num' ], 'unit_num' ), $dates[ 'unit_num' ]->name, bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ));
+			}
 		}
 
 		echo implode( '', array_reverse( $store_history ) );
@@ -258,6 +280,8 @@ function bch_add_store_custom_field_info() {
 
 
 	// List the history for the unit.
+	// ToDo: No one is unit 239 so no 'History of 239' is shown: https://staging.blanchcentrehistory.com/2014/10/loccitane/
+	printf( '<pre class="admin-note">$dates_for_unit:%s%s</pre>', "\n", var_export( $dates_for_unit, true ) );
 	if ( $dates_for_unit ) {
 		foreach ( $open_unit_tags as $unit_num ) {
 			// Based on code from: https://www.advancedcustomfields.com/resources/query-posts-custom-fields/
