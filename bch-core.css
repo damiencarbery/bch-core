@@ -103,3 +103,6 @@ article.type-post {	position: relative; }
 /* For left/right unit navigation. */
 .single-unit-num { display: flex; justify-content: space-around; } /* Maybe use space-between on mobile. */
 
+/* Unit history */
+ul.unit_history { margin-bottom: 28px; } /* Same margin-bottom as paragraph. */
+
