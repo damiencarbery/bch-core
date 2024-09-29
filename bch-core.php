@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.4.20240109
+Version: 0.6.20240929
 */
 
 
@@ -65,7 +65,7 @@ function bch_taxonomy_title($title, $sep, $seplocation) {
 // Filter to change $ to % in query's WHERE clause.
 function dates_for_unit_sql( $where ) {
 	$where = str_replace("meta_key = 'dates_for_unit_\$_unit_num", "meta_key LIKE 'dates_for_unit_%_unit_num", $where);
-	error_log( 'dates_for_unit_sql: ' . $where );
+	//error_log( 'dates_for_unit_sql: ' . $where );
 
 	return $where;
 }
@@ -109,7 +109,7 @@ function bch_tag_order_by_opendate($query) {
         //$query->set('orderby', 'meta_value' );
 
 		if ( is_user_logged_in() ) {
-			echo '<details>';
+			echo '<details class="admin-note">';
 			echo '<summary>BCH_TAG query_vars:</summary>';
 			echo '<pre>', var_export($query->query_vars, true), '</pre>';
 			echo '</details>';
@@ -200,7 +200,12 @@ function bch_add_store_custom_field_info() {
 		}
 	}
 
-	printf( '<p class="admin-note">$open_unit_tags: %s</p>', var_export( $open_unit_tags, true ) );
+	if ( is_user_logged_in() ) {
+		echo '<details class="admin-note">';
+		echo '<summary>$open_unit_tags:</summary>';
+		printf( '<p>$open_unit_tags: %s</p>', var_export( $open_unit_tags, true ) );
+		echo '</details>';
+	}
 
 	// This section lists the units the store currently occupies.
 	// If the store is currently open then show current unit(s).
@@ -281,7 +286,12 @@ function bch_add_store_custom_field_info() {
 
 	// List the history for the unit.
 	// ToDo: No one is unit 239 so no 'History of 239' is shown: https://staging.blanchcentrehistory.com/2014/10/loccitane/
-	printf( '<pre class="admin-note">$dates_for_unit:%s%s</pre>', "\n", var_export( $dates_for_unit, true ) );
+	if ( is_user_logged_in() ) {
+		echo '<details class="admin-note">';
+		echo '<summary>$dates_for_unit:</summary>';
+		printf( '<pre>$dates_for_unit:%s%s</pre>', "\n", var_export( $dates_for_unit, true ) );
+		echo '</details>';
+	}
 	if ( $dates_for_unit ) {
 		foreach ( $open_unit_tags as $unit_num ) {
 			// Based on code from: https://www.advancedcustomfields.com/resources/query-posts-custom-fields/
@@ -426,15 +436,16 @@ function bch_left_right_units() {
 		//$unit_num = get_queried_object();
 		$unit_num = get_term_by( 'name', get_query_var( 'unit_num' ), 'unit_num' );
 
+		// Create left/right links as long as there is a different tag set (e.g. if unit on left == current unit then do not create a circular loop)
 		$left_link = '';
 		$unit_left = get_field( 'unit_on_left', 'unit_num_' . $unit_num->term_id );
-		if ( ! empty( $unit_left ) ) {
-			$left_link = sprintf( '<a href="%s">&larr; Unit on left: %d</a>', get_term_link( $unit_left ), $unit_left->name );
+		if ( ! empty( $unit_left ) && ( $unit_left->term_id != $unit_num->term_id ) ) {
+			$left_link = sprintf( '<a href="%s">&larr; Unit on left: %s</a>', get_term_link( $unit_left ), $unit_left->name );
 		}
 		$right_link = '';
 		$unit_right = get_field( 'unit_on_right', 'unit_num_' . $unit_num->term_id );
-		if ( ! empty( $unit_right ) ) {
-			$right_link = sprintf( '<a href="%s">Unit on right: %d &rarr;</a>', get_term_link( $unit_right ), $unit_right->name );
+		if ( ! empty( $unit_right ) && ( $unit_right->term_id . ':' . $unit_num->term_id ) ) {
+			$right_link = sprintf( '<a href="%s">Unit on right: %s &rarr;</a>', get_term_link( $unit_right ), $unit_right->name );
 		}
 		
 		if ( ! empty( $unit_left ) || ! empty( $unit_right ) ) {
@@ -551,7 +562,7 @@ function bch_unit_num_archive_loop() {
 
 	if ( ! empty( $stores_by_date ) ) {
 		ksort( $stores_by_date );  // Sort by keys (which are open date).
-		echo '<ul>';
+		echo '<ul  class="unit_history">';
 		foreach ( array_reverse( $stores_by_date ) as $store_info ) {
 			printf( '%s', $store_info );
 		}
@@ -615,6 +626,76 @@ function bch_list_stores_alphabetically( $atts, $content, $code ) {
 	}
 	return '<p>' . $i . ' stores.</p>' . ob_get_clean();
 }
+
+
+// List stores that do not have new format data.
+add_shortcode( 'updates_needed', 'bch_updates_needed_shortcode' );
+function bch_updates_needed_shortcode() {
+	//return '<p>[updates_needed] shortcode.</p>';
+	//'meta_query' => array( 'key' =>'dates_for_unit', 'compare' => 'NOT EXISTS' );
+    // WP_Query arguments
+    $args = array (
+		'order' => 'ASC',
+		'posts_per_page' => -1,
+		'meta_key' => 'dates_for_unit',
+		'meta_compare' => 'NOT EXISTS',
+    );
+    // The Query
+    $query = new WP_Query( $args );
+    
+    // The Loop
+	$i = 0;
+    $data = '';
+    if ( $query->have_posts() ) {
+		$data = '<ul>';
+        while ( $query->have_posts() ) {
+            $query->the_post();
+            
+            $data .= sprintf('<li><a href="%s">%s</a> (<a href="%s" target="_blank">Edit</a>)</li>%s', get_permalink(), get_the_title(), get_edit_post_link(), "\n" );
+			$i++;
+        }
+		$data .= '</ul>';
+    } else {
+        // no posts found
+    }
+    
+    // Restore original Post Data
+    wp_reset_postdata();
+	
+	return sprintf( '<h2>These %d stores do not have historical data.</h2>', $i ) . $data;
+}
+
+
+/*
+// Display stores with the specified tag.
+add_shortcode('tag_query', 'bch_tag_query_shortcode');
+function bch_tag_query_shortcode() {
+    // WP_Query arguments
+    $args = array (
+    'tag'                    => '101',
+	'order'                  => 'ASC',
+    );
+    // The Query
+    $query = new WP_Query( $args );
+    
+    // The Loop
+    $data = '';
+    if ( $query->have_posts() ) {
+        while ( $query->have_posts() ) {
+            $query->the_post();
+            
+            $data .= sprintf('<p>Post ID: <a href="%s">%s</a></p>', get_permalink(), get_the_title());
+            // do something
+        }
+    } else {
+        // no posts found
+    }
+    
+    // Restore original Post Data
+    wp_reset_postdata();
+    
+    return $data;
+}*/
 
 
 // Register Custom Taxonomy for the Unit numbers.
