@@ -6,7 +6,7 @@
 	.site-header .wrap { display: initial; }
 }
 
-.admin-note { border: 1px dashed #ccc; font-style: italic; }
+.admin-note { border: 1px dashed #ccc; font-style: italic; margin-bottom: 28px; }
 
 summary { cursor: pointer; }
 
