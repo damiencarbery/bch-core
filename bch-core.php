@@ -642,7 +642,7 @@ function bch_updates_needed_shortcode() {
     );
     // The Query
     $query = new WP_Query( $args );
-    
+
     // The Loop
 	$i = 0;
     $data = '';
@@ -650,7 +650,7 @@ function bch_updates_needed_shortcode() {
 		$data = '<ul>';
         while ( $query->have_posts() ) {
             $query->the_post();
-            
+
             $data .= sprintf('<li><a href="%s">%s</a> (<a href="%s" target="_blank">Edit</a>)</li>%s', get_permalink(), get_the_title(), get_edit_post_link(), "\n" );
 			$i++;
         }
@@ -658,10 +658,10 @@ function bch_updates_needed_shortcode() {
     } else {
         // no posts found
     }
-    
-    // Restore original Post Data
+
+    // Restore original post data.
     wp_reset_postdata();
-	
+
 	return sprintf( '<h2>These %d stores do not have historical data.</h2>', $i ) . $data;
 }
 
@@ -677,23 +677,23 @@ function bch_tag_query_shortcode() {
     );
     // The Query
     $query = new WP_Query( $args );
-    
+
     // The Loop
     $data = '';
     if ( $query->have_posts() ) {
         while ( $query->have_posts() ) {
             $query->the_post();
-            
+
             $data .= sprintf('<p>Post ID: <a href="%s">%s</a></p>', get_permalink(), get_the_title());
             // do something
         }
     } else {
         // no posts found
     }
-    
+
     // Restore original Post Data
     wp_reset_postdata();
-    
+
     return $data;
 }*/
 
