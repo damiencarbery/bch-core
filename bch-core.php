@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.6.20240929
+Version: 0.7.20241016
 */
 
 
@@ -46,6 +46,29 @@ function child_theme_setup() {
 add_action( 'wp_enqueue_scripts', 'bch_enqueue_local_styles' );
 function bch_enqueue_local_styles() {
     wp_enqueue_style( 'bch', plugin_dir_url( __FILE__ ) . 'bch-core.css', array( 'genesis-sample' ) );
+}
+
+
+// Add favicon links. Files are in the root directory.
+add_action( 'wp_head', 'bch_favicon' );
+function bch_favicon() {
+?>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/site.webmanifest">
+<?php
+}
+
+
+// Set <title> when on url for history of a unit e.g. https://www.blanchcentrehistory.com/unit/111/, otherwise it is blank.
+add_filter( 'document_title_parts', 'bch_unit_taxonomy_title' );
+function bch_unit_taxonomy_title( $title ) {
+	$unit_num = get_query_var( 'unit_num' );
+	if ( $unit_num ) {
+		$title['title'] = 'History of unit ' . $unit_num;
+	}
+	return $title;
 }
 
 
@@ -631,6 +654,7 @@ function bch_list_stores_alphabetically( $atts, $content, $code ) {
 // List stores that do not have new format data.
 add_shortcode( 'updates_needed', 'bch_updates_needed_shortcode' );
 function bch_updates_needed_shortcode() {
+	$output = '';
 	//return '<p>[updates_needed] shortcode.</p>';
 	//'meta_query' => array( 'key' =>'dates_for_unit', 'compare' => 'NOT EXISTS' );
     // WP_Query arguments
@@ -662,7 +686,38 @@ function bch_updates_needed_shortcode() {
     // Restore original post data.
     wp_reset_postdata();
 
-	return sprintf( '<h2>These %d stores do not have historical data.</h2>', $i ) . $data;
+	$output = sprintf( '<h2>These %d stores do not have historical data.</h2>', $i ) . $data;
+
+	// Another query for stores that have dates_for_unit but use unit_number instead of the unit_num taxonomy.
+    $args = array (
+		'order' => 'ASC',
+		'posts_per_page' => -1,
+		'meta_key' => 'dates_for_unit_0_unit_num',
+		'meta_value' => '0',  // This meta_value/meta_compare does not make sense - I am looking for empty values.
+		'meta_compare' => '<',
+    );
+    // The Query
+    $query = new WP_Query( $args );
+
+    // The Loop
+	$i = 0;
+    $data = '';
+    if ( $query->have_posts() ) {
+		$data = '<ul>';
+        while ( $query->have_posts() ) {
+            $query->the_post();
+
+            $data .= sprintf('<li><a href="%s">%s</a> (<a href="%s" target="_blank">Edit</a>)</li>%s', get_permalink(), get_the_title(), get_edit_post_link(), "\n" );
+			$i++;
+        }
+		$data .= '</ul>';
+    } else {
+        // no posts found
+    }
+
+    // Restore original post data.
+    wp_reset_postdata();
+	return $output . sprintf( '<h2>These %d stores do not use unit_num taxonomy.</h2>', $i ) . $data;
 }
 
 
