@@ -11,6 +11,8 @@
 summary { cursor: pointer; }
 
 
+.shop-info { padding-top: 1.5em; } /* Compensate for p:last-child that is directly before this has margin-bottom:0. */
+
 .stores-list { display: flex; flex-wrap: wrap; margin-bottom: 2em; }
 .stores-list div { border-bottom: 1px dashed #ccc; width: 50%; }
 @media only screen and (min-width: 960px) {
@@ -101,7 +103,7 @@ article.type-post {	position: relative; }
 .ribbon-red:after { right: 0; }
 
 /* For left/right unit navigation. */
-.single-unit-num { display: flex; justify-content: space-around; } /* Maybe use space-between on mobile. */
+.single-unit-num { display: flex; justify-content: space-between; } /* Maybe use space-between on mobile. */
 
 /* Unit history */
 ul.unit_history { margin-bottom: 28px; } /* Same margin-bottom as paragraph. */
