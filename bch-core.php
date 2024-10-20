@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.7.20241016
+Version: 0.7.20241020
 */
 
 
@@ -34,7 +34,7 @@ function child_theme_setup() {
   remove_action( 'genesis_entry_footer', 'genesis_entry_footer_markup_close', 15 );
   remove_action( 'genesis_entry_footer', 'genesis_post_meta' );
 
-  // Add store info after post.
+  // Add store info after post content.
   add_action('genesis_entry_content', 'bch_add_store_custom_field_info', 20);
 
   // Add Left/Right unit to tag archive.
@@ -42,10 +42,36 @@ function child_theme_setup() {
 }
 
 
+add_action( 'wp', 'bch_generatepress_tweaks', 20 );
+function bch_generatepress_tweaks() {
+	// Remove post meta (date/time, cats/tags) and post nav.
+	remove_action( 'generate_after_entry_title', 'generate_post_meta' );
+	remove_action( 'generate_after_entry_content', 'generate_footer_meta' );
+	remove_action( 'generate_after_loop', 'generate_do_post_navigation' );
+
+	// Add store info after post content.
+	//add_action( 'generate_after_entry_content', 'bch_add_store_custom_field_info', 20 );
+	add_action( 'generate_after_content', 'bch_add_store_custom_field_info', 20 );
+
+	// Archive for unit_num taxonomy.
+	add_filter( 'get_the_archive_title', 'bch_archive_title', 10, 3 );
+	add_action( 'generate_before_main_content', 'bch_set_up_archive_loop' );
+
+	// Footer.
+	add_filter( 'generate_copyright', 'bch_footer_copyright' );
+}
+
+
 // Load CSS from plugin.
 add_action( 'wp_enqueue_scripts', 'bch_enqueue_local_styles' );
 function bch_enqueue_local_styles() {
-    wp_enqueue_style( 'bch', plugin_dir_url( __FILE__ ) . 'bch-core.css', array( 'genesis-sample' ) );
+	$dependant_style = 'genesis-sample';
+	$active_theme = wp_get_theme();
+	if ( $active_theme->exists() && 'GeneratePress' == $active_theme->get('Name') ) {
+		$dependant_style = 'generate-style';
+	}
+
+    wp_enqueue_style( 'bch', plugin_dir_url( __FILE__ ) . 'bch-core.css', array( $dependant_style ) );
 }
 
 
@@ -76,12 +102,19 @@ add_filter('wp_title', 'bch_taxonomy_title', 20, 3);
 function bch_taxonomy_title($title, $sep, $seplocation) {
     if (is_tax()) {
 		$prefix = '';
-		if ( is_user_logged_in() ) {
-			$prefix = '50';
-		}
         return $prefix . 'History of unit '.$title;
     }
     return $title;
+}
+
+
+function bch_archive_title( $title, $original_title, $prefix ) {
+	$unit_num = get_query_var( 'unit_num' );
+	if ( $unit_num ) {
+		return 'History of unit ' . $unit_num;
+	}
+
+	return $title;
 }
 
 
@@ -168,7 +201,6 @@ function bch_add_store_custom_field_info() {
 	//error_log( 'Custom for post ' . get_the_ID() . ':' . var_export( $custom, true ) );
     ?>
     <div class="shop-info">
-
 <?php
 	// TODO: Create empty arrays to note open and closed units.
 	// And if there are mutiple open units (e.g. Lifestyle has multiple; Eason is in two units [on different floors]).
@@ -223,7 +255,7 @@ function bch_add_store_custom_field_info() {
 		}
 	}
 
-	if ( is_user_logged_in() ) {
+	if ( false && is_user_logged_in() ) {
 		echo '<details class="admin-note">';
 		echo '<summary>$open_unit_tags:</summary>';
 		printf( '<p>$open_unit_tags: %s</p>', var_export( $open_unit_tags, true ) );
@@ -232,7 +264,7 @@ function bch_add_store_custom_field_info() {
 
 	// This section lists the units the store currently occupies.
 	// If the store is currently open then show current unit(s).
-	if ( $open_unit_tags  ) {
+	if ( $open_unit_tags ) {
 		// Change Unit to Units when more than one tag/unit listed.
 		$unit_text = 'Unit';
 		if ( count( $open_unit_tags ) > 1 ) {
@@ -309,7 +341,7 @@ function bch_add_store_custom_field_info() {
 
 	// List the history for the unit.
 	// ToDo: No one is unit 239 so no 'History of 239' is shown: https://staging.blanchcentrehistory.com/2014/10/loccitane/
-	if ( is_user_logged_in() ) {
+	if ( false && is_user_logged_in() ) {
 		echo '<details class="admin-note">';
 		echo '<summary>$dates_for_unit:</summary>';
 		printf( '<pre>$dates_for_unit:%s%s</pre>', "\n", var_export( $dates_for_unit, true ) );
@@ -374,17 +406,14 @@ function bch_add_store_custom_field_info() {
 	}
 ?>
     </div><!-- /.shop-info -->
-    <?php
-    ?>
-    </div><!-- /#shop -->
-    <!--<hr/>-->
 	<details>
 	<summary>Found an error? Let me know...</summary>
     <?php
     // Add contact form to solicit updates.
-    echo do_shortcode('[ninja_form id=2]');
+    echo do_shortcode('[ninja_form id=4]');  // ID=4 on localhost, ID=2 on staging.
 ?>
 	</details>
+
 <?php
   } // End: if (is_single() && ('post' == get_post_type()))
 }
@@ -473,11 +502,11 @@ function bch_left_right_units() {
 		
 		if ( ! empty( $unit_left ) || ! empty( $unit_right ) ) {
 ?>
-<div class="archive-description single-unit-num">
+<div class="archive-description single-unit-num inside-article">
 <div><?php echo $left_link; ?></div>
 <div><?php echo $right_link; ?></div>
 </div>
-<?
+<?php
 		}
 
 		if ( empty( $unit_left ) && empty( $unit_right ) ) {
@@ -490,7 +519,7 @@ function bch_left_right_units() {
 			}
 ?>
 </div>
-<?
+<?php
 		}
 	}
 }
@@ -502,6 +531,7 @@ function bch_unit_num_rewrite_tag() {
 	add_rewrite_tag( '%unit_num%', '([^&]+)');
 	add_rewrite_rule('^unit_num/([^/]*)/?','index.php?unit_num=$matches[1]', 'top' );
 }
+
 
 // ToDo: Add pre_get_posts() - if unit_num found then change query to special 'unit_num' one.
 add_action('pre_get_posts', 'bch_pre_get_posts_unit_num');
@@ -537,15 +567,6 @@ function bch_genesis_before_loop() {
 		// Could remove breadcrumbs with this filter:
 		//add_filter( 'genesis_do_breadcrumbs', '__return_true' );
 
-		// These do not appear to do anything on the unit archive page.
-		/*remove_action( 'genesis_before_loop', 'genesis_do_cpt_archive_title_description' );
-		remove_action( 'genesis_before_loop', 'genesis_do_date_archive_title' );
-		remove_action( 'genesis_before_loop', 'genesis_do_blog_template_heading' );
-		remove_action( 'genesis_before_loop', 'genesis_do_posts_page_heading' );
-		remove_action( 'genesis_before_loop', 'genesis_do_taxonomy_title_description', 15 );
-		remove_action( 'genesis_before_loop', 'genesis_do_author_title_description', 15 );
-		remove_action( 'genesis_before_loop', 'genesis_do_author_box_archive', 15 );*/
-
 		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_open', 5 );
 		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_headline' );
 		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_intro_text', 12 );
@@ -557,14 +578,30 @@ function bch_genesis_before_loop() {
 }
 
 
+function bch_set_up_archive_loop() {
+	$unit_num = get_query_var( 'unit_num' );
+	if ( $unit_num ) {
+		add_filter( 'generate_has_default_loop', '__return_false' );
+	}
+
+	bch_unit_num_archive_loop();
+}
+
+
 // Handle the loop for /unit_num/* urls.
 function bch_unit_num_archive_loop() {
 	$unit_num = get_query_var( 'unit_num' );
+	if ( !$unit_num ) {
+		return;
+	}
+
+	generate_archive_title();
+
 	$stores_by_date = array();
 
-	genesis_do_archive_headings_open();
-	printf( '<h1 %s>History of unit %s</h1>', genesis_attr( 'archive-title' ), esc_html( $unit_num ) );
-	genesis_do_archive_headings_close();
+	//genesis_do_archive_headings_open();
+	//printf( '<h1 %s>History of unit %s</h1>', genesis_attr( 'archive-title' ), esc_html( $unit_num ) );
+	//genesis_do_archive_headings_close();
 
 	if ( have_posts() ) {
 		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
@@ -584,6 +621,10 @@ function bch_unit_num_archive_loop() {
 	}
 
 	if ( ! empty( $stores_by_date ) ) {
+?>
+<article id="unit_num-<?php echo $unit_num; ?>" <?php generate_do_microdata( 'article' ); ?>>
+	<div class="inside-article">
+<?php
 		ksort( $stores_by_date );  // Sort by keys (which are open date).
 		echo '<ul  class="unit_history">';
 		foreach ( array_reverse( $stores_by_date ) as $store_info ) {
@@ -595,6 +636,10 @@ function bch_unit_num_archive_loop() {
 	else {
 		printf( '<p>Sorry, there is no history for unit %d.</p>', $unit_num );
 	}
+?>
+</div><!-- /.inside-article -->
+</article>
+<?php
 
 	// Add Left/Right links after unit history list.
 	//add_action( 'genesis_after_loop', 'bch_left_right_units' );
@@ -608,6 +653,18 @@ function bch_unit_num_archive_loop() {
 add_filter( 'genesis_search_text', 'bch_change_search_form_text' );
 function bch_change_search_form_text( $placeholder ) {
 	return 'Search for stores';
+}
+
+
+// Change footer text to add my name.
+function bch_footer_copyright( $copyright ) {
+	return sprintf(
+			'<span class="copyright">&copy; 2013 - %1$s %2$s</span> &bull; Maintained by <a href="https://www.damiencarery.com" %3$s>Damien Carbery</a>',
+			date( 'Y' ), // phpcs:ignore
+			get_bloginfo( 'name' ),
+			'microdata' === generate_get_schema_type() ? ' itemprop="url"' : ''
+		);
+
 }
 
 
