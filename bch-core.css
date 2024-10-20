@@ -55,52 +55,24 @@ summary { cursor: pointer; }
 
 article.type-post {	position: relative; }
 
-.ribbon-wrapper-red {
-	overflow: hidden;
-	position: absolute;
-	top: -3px;
-	right: -3px;
-	width: 85px;
-	height: 88px;
-}
+/* Ribbon markup and css from: https://css-generators.com/ribbon-shapes/ */
+.ribbon { font-size: 20px; font-weight: bold; color: #fff; }
+.ribbon {
+  --f: .5em; /* control the folded part */
 
-.ribbon-red {
-	position: relative;
-	top: 15px;
-	left: -5px;
-	width: 120px;
-	padding: 7px 0;
-	color: #fff;
-	background-color: #dc7a7a;
-	background-image: -webkit-gradient(linear, left top, left bottom, from(#dc7a7a), to(#bf4545));
-	background-image: -webkit-linear-gradient(top, #dc7a7a, #bf4545);
-	background-image: -moz-linear-gradient(top, #dc7a7a, #bf4545);
-	background-image: -ms-linear-gradient(top, #dc7a7a, #bf4545);
-	background-image: -o-linear-gradient(top, #dc7a7a, #bf4545);
-	-webkit-box-shadow: 0 0 3px rgba(0,0,0,0.3);
-	-moz-box-shadow: 0 0 3px rgba(0,0,0,0.3);
-	box-shadow: 0 0 3px rgba(0,0,0,0.3);
-	text-shadow: rgba(0,0,0,0.5) 0 1px 0;
-	font: bold 15px Sans-Serif;
-	text-align: center;
-	-webkit-transform: rotate(45deg);
-	-moz-transform: rotate(45deg);
-	-ms-transform: rotate(45deg);
-	-o-transform: rotate(45deg);
+  position: absolute;
+  top: 0;
+  right: 0;
+  line-height: 1.8;
+  padding-inline: 1lh;
+  padding-bottom: var(--f);
+  border-image: conic-gradient(#0008 0 0) 51%/var(--f);
+  clip-path: polygon(
+    100% calc(100% - var(--f)),100% 100%,calc(100% - var(--f)) calc(100% - var(--f)),var(--f) calc(100% - var(--f)), 0 100%,0 calc(100% - var(--f)),999px calc(100% - var(--f) - 999px),calc(100% - 999px) calc(100% - var(--f) - 999px));
+  transform: translate(calc((1 - cos(45deg))*100%), -100%) rotate(45deg);
+  transform-origin: 0% 100%;
+  background-color: #BD1550; /* the main color  */
 }
-
-.ribbon-red:before,
-.ribbon-red:after {
-	position: absolute;
-	bottom: -3px;
-	border-top: 3px solid #890000;
-	border-right: 3px solid transparent;
-	border-left: 3px solid transparent;
-	content: "";
-}
-
-.ribbon-red:before { left: 0; }
-.ribbon-red:after { right: 0; }
 
 /* For left/right unit navigation. */
 .single-unit-num { display: flex; justify-content: space-between; } /* Maybe use space-between on mobile. */
