@@ -8,40 +8,6 @@ Version: 0.7.20241020
 */
 
 
-// Tweaks when using a Genesis theme.
-add_action('genesis_setup','child_theme_setup', 15);
-function child_theme_setup() {
-  //* Add HTML5 markup structure
-  //add_theme_support( 'html5' );
-
-  //* Add viewport meta tag for mobile browsers
-  add_theme_support( 'genesis-responsive-viewport' );
-
-  //* Add support for custom background
-  //add_theme_support( 'custom-background' );
-
-  //* Add support for 3-column footer widgets
-  //add_theme_support( 'genesis-footer-widgets', 3 );
-
-  //* Enable accessibility (a11y) support. Introduced in Genesis 2.2.0.
-  add_theme_support( 'genesis-accessibility', array( 'headings', 'drop-down-menu', 'search-form', 'skip-links', 'rems' ) );
-  
-  // Remove post info/author from under post title.
-  remove_action( 'genesis_entry_header', 'genesis_post_info', 12 );
-  
-  // Remove the 'Filed Under' and 'Tags' info.
-  remove_action( 'genesis_entry_footer', 'genesis_entry_footer_markup_open', 5 );
-  remove_action( 'genesis_entry_footer', 'genesis_entry_footer_markup_close', 15 );
-  remove_action( 'genesis_entry_footer', 'genesis_post_meta' );
-
-  // Add store info after post content.
-  add_action('genesis_entry_content', 'bch_add_store_custom_field_info', 20);
-
-  // Add Left/Right unit to tag archive.
-  //add_action( 'genesis_before_while', 'bch_left_right_units' );
-}
-
-
 add_action( 'wp', 'bch_generatepress_tweaks', 20 );
 function bch_generatepress_tweaks() {
 	// Remove post meta (date/time, cats/tags) and post nav.
@@ -420,10 +386,10 @@ function bch_add_store_custom_field_info() {
 
 
 // Add 'Closed' ribbon to posts with the 'closed' category.
-// Based on: http://sridharkatakam.com/add-new-ribbon-posts-published-last-7-days-genesis/
+// Markup and CSS from: https://css-generators.com/ribbon-shapes/
 // ToDo: Consider getting this from ACF repeater field instead of relying on category being set.
-add_action( 'genesis_entry_header', 'sk_display_new_ribbon', 1 );
-function sk_display_new_ribbon() {
+add_action( 'generate_before_content', 'bch_store_closed_ribbon', 1 );
+function bch_store_closed_ribbon() {
     /*if (!is_single()) {
         return;
     }*/
@@ -433,20 +399,17 @@ function sk_display_new_ribbon() {
         return;
     }
 ?>	
-<div class="ribbon-wrapper-red"><div class="ribbon-red">Closed</div></div>
+<div class="ribbon">Closed</div>
 <?php
 }
 
 
+// Not using breadcrumbs with GeneratePress theme - they require a third party plugin.
+/*
 add_filter( 'genesis_breadcrumb_args', 'bch_breadcrumb_args' );
 function bch_breadcrumb_args( $args ) {
-	//$args['labels']['prefix'] = 'You are here: ';
 	$args['labels']['category'] = 'List of units at ';
 	$args['labels']['tag'] = 'History of unit ';
-	//$args['labels']['date'] = 'Archives for ';
-	//$args['labels']['search'] = 'Search for ';
-	//$args['labels']['tax'] = 'Archives for ';
-	//$args['labels']['post_type'] = 'Archives for ';
    
     return $args;
 }
@@ -460,6 +423,7 @@ function bch_category_crumb( $crumb, $args ) {
 	}
 	return $crumb;
 }
+*/
 
 
 add_filter('get_term_metadata', 'bch_change_category_title', 10, 4);
@@ -554,30 +518,6 @@ function bch_pre_get_posts_unit_num( $query ) {
 }
 
 
-add_action( 'genesis_before_loop', 'bch_genesis_before_loop', 5 );
-function bch_genesis_before_loop() {
-	if ( get_query_var( 'unit_num' ) ) {
-		//echo '<p>unit_num query var: ', get_query_var( 'unit_num' ), '</p>';
-
-		// Do not do standard Genesis loop (which would be a posts page loop).
-		remove_action( 'genesis_loop', 'genesis_do_loop' );
-
-		// Remove breadcrumbs.
-		remove_action( 'genesis_before_loop', 'genesis_do_breadcrumbs' );
-		// Could remove breadcrumbs with this filter:
-		//add_filter( 'genesis_do_breadcrumbs', '__return_true' );
-
-		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_open', 5 );
-		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_headline' );
-		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_intro_text', 12 );
-		remove_action( 'genesis_archive_title_descriptions', 'genesis_do_archive_headings_close', 15 );
-
-		// Instead do a custom loop showing the units.
-		add_action( 'genesis_loop', 'bch_unit_num_archive_loop' );
-	}
-}
-
-
 function bch_set_up_archive_loop() {
 	$unit_num = get_query_var( 'unit_num' );
 	if ( $unit_num ) {
@@ -598,10 +538,6 @@ function bch_unit_num_archive_loop() {
 	generate_archive_title();
 
 	$stores_by_date = array();
-
-	//genesis_do_archive_headings_open();
-	//printf( '<h1 %s>History of unit %s</h1>', genesis_attr( 'archive-title' ), esc_html( $unit_num ) );
-	//genesis_do_archive_headings_close();
 
 	if ( have_posts() ) {
 		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
@@ -642,17 +578,9 @@ function bch_unit_num_archive_loop() {
 <?php
 
 	// Add Left/Right links after unit history list.
-	//add_action( 'genesis_after_loop', 'bch_left_right_units' );
 	bch_left_right_units();
 
 	remove_filter( 'posts_where', 'dates_for_unit_sql' );
-}
-
-
-// Change the search form text fronm 'Search this website' to 'Search for stores'.
-add_filter( 'genesis_search_text', 'bch_change_search_form_text' );
-function bch_change_search_form_text( $placeholder ) {
-	return 'Search for stores';
 }
 
 
@@ -907,18 +835,3 @@ function unit_num_add_column_data( $unused, $column, $term_id ) {
 			break;
 	}
 }
-
-
-// Disable SEO settings globally (primarily so it isn't in the Unit Numbers taxonomy pages).
-add_action( 'after_setup_theme', 'bch_disable_genesis_seo', 20 );
-function bch_disable_genesis_seo() {
-	if ( function_exists( 'genesis_disable_seo' ) ) {
-		genesis_disable_seo();
-	}
-
-	//remove_action( 'unit_num_edit_form', 'genesis_taxonomy_layout_options', 10, 2 );
-}
-
-
-// Disable Edit link at bottom of post/page.
-add_filter('genesis_edit_post_link', '__return_false' );
