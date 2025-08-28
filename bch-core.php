@@ -59,7 +59,12 @@ function bch_unit_taxonomy_title( $title ) {
 	$unit_num = get_query_var( 'unit_num' );
 	if ( $unit_num ) {
 		$term = get_term_by( 'name', $unit_num, 'unit_num' );
-		$title['title'] = 'History of unit ' . (empty( $term->description ) ? $term->name : $term->description);;
+		if ( $term ) {
+			$title['title'] = 'History of unit ' . (empty( $term->description ) ? $term->name : $term->description);;
+		}
+		else {
+			$title['title'] = 'Invalid unit.';
+		}
 	}
 	return $title;
 }
@@ -80,7 +85,12 @@ function bch_archive_title( $title, $original_title, $prefix ) {
 	$unit_num = get_query_var( 'unit_num' );
 	if ( $unit_num ) {
 		$term = get_term_by( 'name', $unit_num, 'unit_num' );
-		return 'History of unit ' . (empty( $term->description ) ? $term->name : $term->description);
+		if ( $term ) {
+			return 'History of unit ' . (empty( $term->description ) ? $term->name : $term->description);
+		}
+		else {
+			return sprintf( 'Unit %s is not a valid unit.', $unit_num );
+		}
 	}
 
 	return $title;
@@ -455,16 +465,21 @@ function bch_left_right_units() {
 		//$unit_num = get_queried_object();
 		$unit_num = get_term_by( 'name', get_query_var( 'unit_num' ), 'unit_num' );
 
-		// Create left/right links as long as there is a different tag set (e.g. if unit on left == current unit then do not create a circular loop)
-		$left_link = '';
-		$unit_left = get_field( 'unit_on_left', 'unit_num_' . $unit_num->term_id );
-		if ( ! empty( $unit_left ) && ( $unit_left->term_id != $unit_num->term_id ) ) {
-			$left_link = sprintf( '<a href="%s">&larr; Unit on left: %s</a>', get_term_link( $unit_left ), $unit_left->name );
-		}
-		$right_link = '';
-		$unit_right = get_field( 'unit_on_right', 'unit_num_' . $unit_num->term_id );
-		if ( ! empty( $unit_right ) && ( $unit_right->term_id . ':' . $unit_num->term_id ) ) {
-			$right_link = sprintf( '<a href="%s">Unit on right: %s &rarr;</a>', get_term_link( $unit_right ), $unit_right->name );
+		$unit_left = $unit_right = '';
+
+		// Only examine $unit_num if get_term_by() returned a valid response.
+		if ( $unit_num ) {
+			// Create left/right links as long as there is a different tag set (e.g. if unit on left == current unit then do not create a circular loop)
+			$left_link = '';
+			$unit_left = get_field( 'unit_on_left', 'unit_num_' . $unit_num->term_id );
+			if ( ! empty( $unit_left ) && ( $unit_left->term_id != $unit_num->term_id ) ) {
+				$left_link = sprintf( '<a href="%s">&larr; Unit on left: %s</a>', get_term_link( $unit_left ), $unit_left->name );
+			}
+			$right_link = '';
+			$unit_right = get_field( 'unit_on_right', 'unit_num_' . $unit_num->term_id );
+			if ( ! empty( $unit_right ) && ( $unit_right->term_id . ':' . $unit_num->term_id ) ) {
+				$right_link = sprintf( '<a href="%s">Unit on right: %s &rarr;</a>', get_term_link( $unit_right ), $unit_right->name );
+			}
 		}
 		
 		if ( ! empty( $unit_left ) || ! empty( $unit_right ) ) {
@@ -477,16 +492,19 @@ function bch_left_right_units() {
 		}
 
 		if ( empty( $unit_left ) && empty( $unit_right ) ) {
+			if ( is_user_logged_in() ) {
 ?>
 <div class="archive-description">
 <p>Error: There is no left/right unit set for this unit.</p>
 <?php
-			if ( is_user_logged_in() ) {
-				printf( '<p><a href="/wp-admin/term.php?taxonomy=unit_num&tag_ID=%s&post_type=post">Edit unit %s</a></p>', $unit_num->term_id, $unit_num->name );
-			}
+				// Only show link if the term actually exists.
+				if ( $unit_num ) {
+					printf( '<p><a href="/wp-admin/term.php?taxonomy=unit_num&tag_ID=%s&post_type=post">Edit unit %s</a></p>', $unit_num->term_id, $unit_num->name );
+				}
 ?>
 </div>
 <?php
+			}
 		}
 	}
 }
@@ -545,14 +563,17 @@ function bch_unit_num_archive_loop() {
 	if ( have_posts() ) {
 		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
 
-		while ( have_posts() ) {
-			the_post();
+		// Ensure get_term_by() was successful before continuing.
+		if ( $unit_num_term ) {
+			while ( have_posts() ) {
+				the_post();
 
-			$dates_for_unit = get_field( 'dates_for_unit' );
-			if ( $dates_for_unit ) {
-				foreach ( $dates_for_unit as $dates ) {
-					if ( $dates[ 'unit_num' ]->term_id == $unit_num_term->term_id ) {
-						$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<li><a href="%s">%s</a> %s</li>', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
+				$dates_for_unit = get_field( 'dates_for_unit' );
+				if ( $dates_for_unit ) {
+					foreach ( $dates_for_unit as $dates ) {
+						if ( $dates[ 'unit_num' ]->term_id == $unit_num_term->term_id ) {
+							$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<li><a href="%s">%s</a> %s</li>', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
+						}
 					}
 				}
 			}
