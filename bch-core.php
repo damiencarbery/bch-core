@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.7.20241020
+Version: 0.10.20250828
 */
 
 
@@ -58,7 +58,8 @@ add_filter( 'document_title_parts', 'bch_unit_taxonomy_title' );
 function bch_unit_taxonomy_title( $title ) {
 	$unit_num = get_query_var( 'unit_num' );
 	if ( $unit_num ) {
-		$title['title'] = 'History of unit ' . $unit_num;
+		$term = get_term_by( 'name', $unit_num, 'unit_num' );
+		$title['title'] = 'History of unit ' . (empty( $term->description ) ? $term->name : $term->description);;
 	}
 	return $title;
 }
@@ -74,10 +75,12 @@ function bch_taxonomy_title($title, $sep, $seplocation) {
 }
 
 
+// Use term description if available (primarily for WEDT == Westend Drive Thru.
 function bch_archive_title( $title, $original_title, $prefix ) {
 	$unit_num = get_query_var( 'unit_num' );
 	if ( $unit_num ) {
-		return 'History of unit ' . $unit_num;
+		$term = get_term_by( 'name', $unit_num, 'unit_num' );
+		return 'History of unit ' . (empty( $term->description ) ? $term->name : $term->description);
 	}
 
 	return $title;
@@ -555,12 +558,17 @@ function bch_unit_num_archive_loop() {
 			}
 		}
 	}
-
-	if ( ! empty( $stores_by_date ) ) {
 ?>
 <article id="unit_num-<?php echo $unit_num; ?>" <?php generate_do_microdata( 'article' ); ?>>
 	<div class="inside-article">
 <?php
+	if ( ! empty( $stores_by_date ) ) {
+		// Show the description if the unit_num has one.
+		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
+		if ( ! empty( $unit_num_term->description ) ) {
+			echo '<p>', $unit_num_term->description, '</p>';
+		}
+
 		ksort( $stores_by_date );  // Sort by keys (which are open date).
 		echo '<ul  class="unit_history">';
 		foreach ( array_reverse( $stores_by_date ) as $store_info ) {
@@ -601,13 +609,20 @@ function bch_footer_copyright( $copyright ) {
 add_filter( 'acf/settings/remove_wp_meta_box', '__return_false' );
 
 
+// [stores_alphabetically list_closed=true list_all=true]
 add_shortcode( 'stores_alphabetically', 'bch_list_stores_alphabetically' );
 function bch_list_stores_alphabetically( $atts, $content, $code ) {
+	ob_start();
+
 	$atts = shortcode_atts( array(
 			'list_closed' => false,
+			'list_all' => false,
 	  ), $atts );
+	//echo '<pre>', var_export( $atts, true ), '</pre>';
 
 	$args = array( 'order' => 'ASC', 'orderby' => 'title', 'posts_per_page'=> -1 );
+
+	// Can choose to only list closed or to exclude closed stores.
 	$closed_cat_id = 187;
 	if ( $atts[ 'list_closed' ] ) {
 		$args[ 'cat' ] = $closed_cat_id;  // Only list Closed.
@@ -615,9 +630,13 @@ function bch_list_stores_alphabetically( $atts, $content, $code ) {
 	else {
 		$args[ 'cat' ] = '-' . $closed_cat_id;  // Exclude Closed.
 	}
+	// Or list *all* stores.
+	if ( $atts[ 'list_all' ] ) {
+		unset( $args[ 'cat' ] );
+	}
+	//echo '<pre>', var_export( $args, true ), '</pre>';
 
 	$query = new WP_Query( $args );
-	ob_start();
 	if ( $query->have_posts() ) {
 		$i = 0;
 		echo '<div class="stores-list">';
