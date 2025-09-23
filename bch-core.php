@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.10.20250828
+Version: 0.11.20250923
 */
 
 
@@ -559,6 +559,7 @@ function bch_unit_num_archive_loop() {
 	generate_archive_title();
 
 	$stores_by_date = array();
+	$current_store = array();
 
 	if ( have_posts() ) {
 		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
@@ -572,7 +573,13 @@ function bch_unit_num_archive_loop() {
 				if ( $dates_for_unit ) {
 					foreach ( $dates_for_unit as $dates ) {
 						if ( $dates[ 'unit_num' ]->term_id == $unit_num_term->term_id ) {
-							$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = sprintf( '<li><a href="%s">%s</a> %s</li>', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
+							$link = sprintf( '<li><a href="%s">%s</a> %s</li>', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
+							if ( ! empty( $dates[ 'close_date' ] ) ) {
+								$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = $link;
+							}
+							else {
+								$current_store[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = $link;
+							}
 						}
 					}
 				}
@@ -590,8 +597,23 @@ function bch_unit_num_archive_loop() {
 			echo '<p>', $unit_num_term->description, '</p>';
 		}
 
+		if ( ! empty( $current_store ) ) {
+			ksort( $current_store );  // Sort by keys (which are open date).
+
+			echo '<h3>Current tenant</h3>';
+			echo '<ul class="unit_history">';
+			foreach ( array_reverse( $current_store ) as $store_info ) {
+				printf( '%s', $store_info );
+			}
+			echo '</ul>';
+		}
+		else {
+			echo '<p>This unit is currently empty.</p>';
+		}
+
 		ksort( $stores_by_date );  // Sort by keys (which are open date).
-		echo '<ul  class="unit_history">';
+		echo '<h3>Past tenants</h3>';
+		echo '<ul class="unit_history">';
 		foreach ( array_reverse( $stores_by_date ) as $store_info ) {
 			printf( '%s', $store_info );
 		}
