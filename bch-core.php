@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.11.20250923
+Version: 0.12.20251014
 */
 
 
@@ -174,10 +174,6 @@ function bch_add_store_custom_field_info() {
 	if (is_single() && ('post' == get_post_type())) {
 	  // May not need this - use get_post_meta( 'url', get_the_ID() ) and use later.
     $custom = get_post_custom( get_the_ID() );
-    //$opendate = isset($custom['opendate'][0]) ? $custom['opendate'][0] : '1996-01-01';
-	// TODO: Obsolete this, replacing it with $closed_unit_dates below.
-    $closeddate = isset($custom['closeddate'][0]) ? strftime('%B %Y', strtotime($custom['closeddate'][0])) : '';
-	//error_log( 'Custom for post ' . get_the_ID() . ':' . var_export( $custom, true ) );
     ?>
     <div class="shop-info">
 <?php
@@ -897,3 +893,6 @@ function unit_num_add_column_data( $unused, $column, $term_id ) {
 			break;
 	}
 }
+
+
+require_once( plugin_dir_path( __FILE__ ) . 'recent-closures-widget.php' );
