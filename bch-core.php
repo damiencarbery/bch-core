@@ -375,7 +375,8 @@ function bch_add_store_custom_field_info() {
 				echo '</ul>';
 			}
 			else {
-				printf( '<p>Sorry, there is no history for unit %d.</p>', $unit_num );
+				// Capitalise the unit num if it is not an int e.g. we7 -> WE7.
+				printf( '<p>Sorry, there is no history for unit %s.</p>', is_int( $unit_num ) ? $unit_num : strtoupper( $unit_num ) );
 			}
 		}
 	}
@@ -586,7 +587,7 @@ function bch_unit_num_archive_loop() {
 <article id="unit_num-<?php echo $unit_num; ?>" <?php generate_do_microdata( 'article' ); ?>>
 	<div class="inside-article">
 <?php
-	if ( ! empty( $stores_by_date ) ) {
+	if ( ! empty( $stores_by_date ) || ! empty( $current_store ) ) {
 		// Show the description if the unit_num has one.
 		$unit_num_term = get_term_by( 'name', $unit_num, 'unit_num' );
 		if ( ! empty( $unit_num_term->description ) ) {
@@ -607,17 +608,20 @@ function bch_unit_num_archive_loop() {
 			echo '<p>This unit is currently empty.</p>';
 		}
 
-		ksort( $stores_by_date );  // Sort by keys (which are open date).
-		echo '<h3>Past tenants</h3>';
-		echo '<ul class="unit_history">';
-		foreach ( array_reverse( $stores_by_date ) as $store_info ) {
-			printf( '%s', $store_info );
+		if ( ! empty( $stores_by_date ) ) {
+			ksort( $stores_by_date );  // Sort by keys (which are open date).
+			echo '<h3>Past tenants</h3>';
+			echo '<ul class="unit_history">';
+			foreach ( array_reverse( $stores_by_date ) as $store_info ) {
+				printf( '%s', $store_info );
+			}
+			echo '</ul>';
 		}
-		echo '</ul>';
 
 	}
 	else {
-		printf( '<p>Sorry, there is no history for unit %d.</p>', $unit_num );
+		// Capitalise the unit num if it is not an int e.g. we7 -> WE7.
+		printf( '<p>Sorry, there is no history for unit %s.</p>', is_int( $unit_num ) ? $unit_num : strtoupper( $unit_num ) );
 	}
 ?>
 </div><!-- /.inside-article -->
