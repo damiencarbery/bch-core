@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.13.20251112
+Version: 0.14.20251112
 */
 
 
@@ -572,10 +572,10 @@ function bch_unit_num_archive_loop() {
 						if ( $dates[ 'unit_num' ]->term_id == $unit_num_term->term_id ) {
 							$link = sprintf( '<li><a href="%s">%s</a> %s</li>', get_the_permalink(), get_the_title(), bch_unit_date_range( $dates[ 'open_date' ], $dates[ 'close_date' ] ) );
 							if ( ! empty( $dates[ 'close_date' ] ) ) {
-								$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = $link;
+								$stores_by_date[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] .= $link;
 							}
 							else {
-								$current_store[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] = $link;
+								$current_store[ date( 'Ymd', strtotime( $dates[ 'open_date' ] ) ) ] .= $link;
 							}
 						}
 					}
