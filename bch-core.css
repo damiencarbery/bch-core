@@ -74,6 +74,9 @@ article.type-post {	position: relative; }
   background-color: #BD1550; /* the main color  */
 }
 
+/* Remove margin-top as there is no post content. */
+.post .entry-content:not(:first-child) { margin-top: 0; }
+
 /* For left/right unit navigation. */
 .single-unit-num { display: flex; justify-content: space-between; } /* Maybe use space-between on mobile. */
 
