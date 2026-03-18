@@ -4,7 +4,7 @@ Plugin Name: BlanchCentreHistory.com
 Plugin URI: https://www.damiencarbery.com
 Description: Theme independent code for BlanchCentreHistory.com.
 Author: Damien Carbery
-Version: 0.15.20251113
+Version: 0.16.20260318
 */
 
 
@@ -413,6 +413,15 @@ function bch_store_closed_ribbon() {
 <?php
 }
 
+
+// Don't need content for individual shop pages as the text is generic and of no value.
+add_filter( 'the_content', 'bch_no_content_for_single_posts' );
+function bch_no_content_for_single_posts( $content ) {
+	if ( is_single() ) {
+		return '';
+	}
+	return $content;
+}
 
 // Not using breadcrumbs with GeneratePress theme - they require a third party plugin.
 /*
